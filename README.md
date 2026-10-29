@@ -6,13 +6,17 @@ before enabling Google search.
 
 ## Run locally
 
-Requires Node.js 24+ (uses the built-in `node:sqlite`).
+Requires Node.js 20+ and a Supabase project (the Free plan is enough).
 
 ```sh
 npm install
 cp .env.example .env.local   # Places search stays disabled until you edit this
 npm run dev                  # http://localhost:3000
 ```
+
+Fill in the Supabase values in `.env.local`, then run
+`supabase/migrations/001_initial.sql` once in the Supabase SQL Editor. Until
+then the dashboard shows "Usage tracking is unavailable" and refuses searches.
 
 The app only answers on `localhost` until authentication is added.
 
@@ -27,6 +31,6 @@ npm run build
 
 ## Layout
 
-- `src/lib/server/`: server-only code (config, usage limits, Places client, search orchestration)
+- `src/lib/server/`: server-only code (config, Supabase stores, Places client, search orchestration)
 - `src/app/api/`: `POST /api/search`, `GET /api/status`, `POST /api/settings`
-- `data/`: local SQLite database (git-ignored), with usage events and settings only
+- `supabase/migrations/`: database schema, run manually in the SQL Editor

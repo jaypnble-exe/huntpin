@@ -13,8 +13,8 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export default function Home() {
-  const status = getUsageStatus();
+export default async function Home() {
+  const status = await getUsageStatus();
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
@@ -60,7 +60,7 @@ export default function Home() {
       <dl className="mt-3 grid gap-4 sm:grid-cols-2">
         <Stat label="Places search" value={status.searchBlockedReason ?? "Enabled"} />
         <Stat
-          label="App-tracked requests this month (UTC)"
+          label="App-tracked requests this month (UTC, stored in Supabase)"
           value={
             status.used === null || status.limit === null
               ? "Unavailable"

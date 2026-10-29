@@ -1,13 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMemorySettingsStore, createMemoryUsageStore } from "@/test/memoryStores";
 import { loadConfig } from "./config";
-import { openDatabase } from "./db";
 import { TEXT_SEARCH_URL } from "./places/textSearch";
 import { createRateLimiter } from "./rateLimit";
 import { runSearch, type SearchDeps } from "./search";
-import { createSettingsStore } from "./settings";
-import { createUsageStore, type UsageStore } from "./usage";
+import type { UsageStore } from "./usage";
 
-// Integration tests: real config parsing, real SQLite (in memory), mocked Google.
+// Integration tests: real config parsing, in-memory stores, mocked Google.
 const API_KEY = "TEST-KEY-never-real";
 const ENABLED_ENV = {
   PLACES_SEARCH_ENABLED: "true",
@@ -23,14 +22,13 @@ function googleResponse(json: unknown, status = 200) {
 }
 
 let fetchFn: ReturnType<typeof vi.fn<typeof fetch>>;
-let deps: SearchDeps;
+let deps: SearchDeps & { usage: ReturnType<typeof createMemoryUsageStore> };
 
-function makeDeps(env: Record<string, string> = ENABLED_ENV): SearchDeps {
-  const db = openDatabase(":memory:");
+function makeDeps(env: Record<string, string> = ENABLED_ENV) {
   return {
     config: loadConfig(env),
-    usage: createUsageStore(db),
-    settings: createSettingsStore(db),
+    usage: createMemoryUsageStore(),
+    settings: createMemorySettingsStore(),
     rateLimiter: createRateLimiter({ limit: 100, windowMs: 60_000 }),
     fetchFn,
     now: () => NOW,
@@ -72,7 +70,7 @@ describe("runSearch safety checks (no Google request)", () => {
   });
 
   it("refuses while searches are paused", async () => {
-    deps.settings.setSearchPaused(true, NOW);
+    await deps.settings.setSearchPaused(true);
     const outcome = await runSearch(BODY, deps);
     expect(outcome.status).toBe(423);
     expect(fetchFn).not.toHaveBeenCalled();
@@ -86,7 +84,7 @@ describe("runSearch safety checks (no Google request)", () => {
       reserve: () => {
         throw new Error("db down");
       },
-      complete: () => {},
+      complete: async () => {},
     };
     const outcome = await runSearch(BODY, { ...deps, usage: broken });
     expect(outcome.status).toBe(503);
@@ -177,7 +175,7 @@ describe("runSearch Google request", () => {
     expect(outcome.body).toMatchObject({ error: "places_request_failed" });
     expect((outcome.body as { message: string }).message).toContain(category);
     expect(fetchFn).toHaveBeenCalledTimes(1);
-    expect(deps.usage.countThisMonth(NOW)).toBe(1);
+    expect(deps.usage.events).toEqual([{ id: 1, status: "failure", errorCategory: category }]);
   });
 
   it("handles timeouts, network errors, and malformed responses", async () => {
@@ -201,5 +199,24 @@ describe("runSearch Google request", () => {
     expect(JSON.stringify(outcome)).not.toContain(API_KEY);
     const success = await runSearch(BODY, deps);
     expect(JSON.stringify(success)).not.toContain(API_KEY);
+  });
+});
+
+describe("runSearch usage recording", () => {
+  it("marks the reserved request as successful", async () => {
+    await runSearch(BODY, deps);
+    expect(deps.usage.events).toEqual([{ id: 1, status: "success", errorCategory: null }]);
+  });
+
+  it("still returns results if recording the outcome fails", async () => {
+    const usage = createMemoryUsageStore();
+    usage.complete = async () => {
+      throw new Error("db down");
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const outcome = await runSearch(BODY, { ...deps, usage });
+    expect(outcome.status).toBe(200);
+    expect(usage.events).toHaveLength(1);
+    warn.mockRestore();
   });
 });

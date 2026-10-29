@@ -38,7 +38,7 @@ requested. Checked on 2026-10-29 against Google's
 |---|---|---|
 | `PLACES_SEARCH_ENABLED` | `false` | Must be exactly `true`, or no request is made |
 | `MAX_RESULTS_PER_SEARCH` | `10` | Requests above it are rejected; the code ceiling is 10 |
-| `MAX_PLACES_REQUESTS_PER_MONTH` | `10` | Counted in the local DB per UTC month; the code ceiling is 100 |
+| `MAX_PLACES_REQUESTS_PER_MONTH` | `10` | Counted in Supabase per UTC month; the code ceiling is 100 |
 | `PLACES_FIELD_TIER` | `ids_only` | See above |
 
 The server also refuses a search when:
@@ -52,6 +52,26 @@ A failed request still counts toward the monthly limit, because Google may bill 
 
 These limits only cover this app. They can't see other apps or projects on the
 same billing account.
+
+## Supabase setup
+
+1. **Keep it free.** Use the **Free** plan. If the organization is on a paid
+   plan, keep the Spend Cap on. Free projects pause after about a week without
+   activity; restore them from the dashboard.
+2. **Fill in keys.** Put the project URL, publishable key and **secret** key
+   (`sb_secret_...`) in `.env.local`. The secret key bypasses all access rules:
+   never share it, commit it, or give it a `NEXT_PUBLIC_` prefix.
+3. **Run the migration.** Open the SQL Editor, paste
+   `supabase/migrations/001_initial.sql` and run it once. It creates the
+   tables `usage_events`, `app_settings` and `leads` plus two counter
+   functions. It drops nothing.
+4. **Access model.** RLS is on for every table, with no policies, and anon and
+   authenticated roles have no grants. The publishable key can therefore read
+   or write nothing. Only the app's server (with the secret key) can.
+
+The usage counter lives in Supabase. The limit check and the request record
+happen in one database function, so simultaneous searches cannot both pass. If
+Supabase is unreachable, the app refuses searches.
 
 ## 3. Google Cloud setup (do this before enabling search)
 
@@ -87,3 +107,7 @@ let you store place IDs indefinitely. Other Places content (names, addresses,
 website URLs) must not be cached or stored beyond the allowed exceptions. The
 app saves only place IDs and app-created data. Review the Maps Service Specific
 Terms before changing this.
+
+In the `leads` table, `label`, `operator_notes` and `website_url` are entered by
+you, not copied from Google responses. `search_niche` and `search_location` are
+your own search inputs.

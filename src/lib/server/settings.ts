@@ -1,27 +1,33 @@
 import "server-only";
-import type { DatabaseSync } from "node:sqlite";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
+/** All methods throw when settings are unavailable, so callers fail closed. */
 export interface SettingsStore {
-  isSearchPaused(): boolean;
-  setSearchPaused(paused: boolean, now: Date): void;
+  isSearchPaused(): Promise<boolean>;
+  setSearchPaused(paused: boolean): Promise<void>;
 }
 
 const SEARCHES_PAUSED = "searches_paused";
 
-export function createSettingsStore(db: DatabaseSync): SettingsStore {
+export function createSettingsStore(supabase: SupabaseClient): SettingsStore {
   return {
-    isSearchPaused() {
-      const row = db
-        .prepare("SELECT value FROM app_settings WHERE key = ?")
-        .get(SEARCHES_PAUSED) as { value: string } | undefined;
-      return row?.value === "true";
+    async isSearchPaused() {
+      const { data, error } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", SEARCHES_PAUSED)
+        .maybeSingle();
+      if (error) throw new Error("settings_read_failed");
+      return data?.value === "true";
     },
 
-    setSearchPaused(paused, now) {
-      db.prepare(
-        `INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)
-         ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-      ).run(SEARCHES_PAUSED, String(paused), now.toISOString());
+    async setSearchPaused(paused) {
+      const { error } = await supabase.from("app_settings").upsert({
+        key: SEARCHES_PAUSED,
+        value: String(paused),
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw new Error("settings_write_failed");
     },
   };
 }

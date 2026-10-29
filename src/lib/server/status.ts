@@ -1,8 +1,8 @@
 import "server-only";
 import { loadConfig } from "./config";
-import { getDatabase } from "./db";
 import { FIELD_TIERS, type FieldTier } from "./places/fieldMasks";
 import { createSettingsStore } from "./settings";
+import { getSupabaseAdmin } from "./supabase";
 import { createUsageStore } from "./usage";
 
 export interface UsageStatus {
@@ -36,7 +36,7 @@ export function searchBlockedReason(
 }
 
 /** Dashboard summary. Never includes the API key. */
-export function getUsageStatus(now = new Date()): UsageStatus {
+export async function getUsageStatus(): Promise<UsageStatus> {
   const configResult = loadConfig();
   const config = configResult.ok ? configResult.config : null;
 
@@ -44,9 +44,11 @@ export function getUsageStatus(now = new Date()): UsageStatus {
   let paused = false;
   let trackingAvailable = true;
   try {
-    const db = getDatabase();
-    used = createUsageStore(db).countThisMonth(now);
-    paused = createSettingsStore(db).isSearchPaused();
+    const supabase = getSupabaseAdmin();
+    [used, paused] = await Promise.all([
+      createUsageStore(supabase).countThisMonth(),
+      createSettingsStore(supabase).isSearchPaused(),
+    ]);
   } catch {
     trackingAvailable = false;
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDatabase } from "@/lib/server/db";
 import { createSettingsStore } from "@/lib/server/settings";
+import { getSupabaseAdmin } from "@/lib/server/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    createSettingsStore(getDatabase()).setSearchPaused(paused, new Date());
+    await createSettingsStore(getSupabaseAdmin()).setSearchPaused(paused);
   } catch {
     return NextResponse.json({ ok: false, message: "Settings could not be saved." }, { status: 503 });
   }

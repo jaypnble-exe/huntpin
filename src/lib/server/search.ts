@@ -77,7 +77,7 @@ export async function runSearch(body: unknown, deps: SearchDeps): Promise<Search
   }
 
   try {
-    if (deps.settings.isSearchPaused()) {
+    if (await deps.settings.isSearchPaused()) {
       return fail(423, "searches_paused", "Searches are paused in app settings.");
     }
   } catch {
@@ -91,8 +91,7 @@ export async function runSearch(body: unknown, deps: SearchDeps): Promise<Search
   const sku = FIELD_TIERS[config.fieldTier].sku;
   let reservation;
   try {
-    reservation = deps.usage.reserve({
-      now: now(),
+    reservation = await deps.usage.reserve({
       limit: config.maxPlacesRequestsPerMonth,
       sku,
       eventType: "places_text_search",
@@ -113,10 +112,9 @@ export async function runSearch(body: unknown, deps: SearchDeps): Promise<Search
   });
 
   try {
-    deps.usage.complete(reservation.eventId, {
+    await deps.usage.complete(reservation.eventId, {
       success: result.ok,
       errorCategory: result.ok ? null : result.errorCategory,
-      now: now(),
     });
   } catch {
     // The reservation already counts toward the limit; only the outcome is lost.
@@ -129,7 +127,7 @@ export async function runSearch(body: unknown, deps: SearchDeps): Promise<Search
 
   let used = config.maxPlacesRequestsPerMonth;
   try {
-    used = deps.usage.countThisMonth(now());
+    used = await deps.usage.countThisMonth();
   } catch {
     // Report the limit as fully used if the count can't be read.
   }
