@@ -1,7 +1,5 @@
 import "server-only";
-
-export const NICHE_LENGTH = { min: 2, max: 60 };
-export const LOCATION_LENGTH = { min: 2, max: 80 };
+import { LOCATION_LENGTH, NICHE_LENGTH, normalizeText } from "../searchLimits";
 
 const ALLOWED_KEYS = new Set(["niche", "location", "maxResults", "confirmed"]);
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
@@ -31,7 +29,7 @@ function readText(
     errors.push(`${name} contains invalid characters`);
     return "";
   }
-  const text = value.trim().replace(/\s+/g, " ");
+  const text = normalizeText(value);
   if (text.length < min || text.length > max) {
     errors.push(`${name} must be between ${min} and ${max} characters`);
   }

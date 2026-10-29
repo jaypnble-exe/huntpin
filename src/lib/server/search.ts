@@ -1,4 +1,5 @@
 import "server-only";
+import { buildTextQuery } from "../searchLimits";
 import type { ConfigResult } from "./config";
 import { FIELD_TIERS, type FieldTier } from "./places/fieldMasks";
 import { textSearch, type PlaceResult } from "./places/textSearch";
@@ -105,7 +106,7 @@ export async function runSearch(body: unknown, deps: SearchDeps): Promise<Search
 
   const result = await textSearch({
     apiKey: config.googleMapsApiKey,
-    textQuery: `${input.niche} in ${input.location}`,
+    textQuery: buildTextQuery(input.niche, input.location),
     pageSize: input.maxResults,
     fieldTier: config.fieldTier,
     fetchFn: deps.fetchFn,

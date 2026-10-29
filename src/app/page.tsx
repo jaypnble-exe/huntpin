@@ -1,5 +1,6 @@
 import { getUsageStatus } from "@/lib/server/status";
 import { PauseToggle } from "./PauseToggle";
+import { SearchPanel } from "./SearchPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -14,15 +15,6 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default function Home() {
   const status = getUsageStatus();
-  const searchState = !status.configOk
-    ? "Blocked (invalid config)"
-    : !status.trackingAvailable
-      ? "Blocked (usage tracking unavailable)"
-      : !status.searchEnabled
-        ? "Disabled (kill switch)"
-        : status.paused
-          ? "Paused"
-          : "Enabled";
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
@@ -55,8 +47,18 @@ export default function Home() {
         </section>
       )}
 
-      <dl className="mt-6 grid gap-4 sm:grid-cols-2">
-        <Stat label="Places search" value={searchState} />
+      <SearchPanel
+        blockedReason={status.searchBlockedReason}
+        maxResultsPerSearch={status.maxResultsPerSearch ?? 1}
+        sku={status.sku}
+        freeCap={status.googleFreeMonthlyCap}
+        used={status.used}
+        limit={status.limit}
+      />
+
+      <h2 className="mt-10 text-lg font-semibold">Usage and safeguards</h2>
+      <dl className="mt-3 grid gap-4 sm:grid-cols-2">
+        <Stat label="Places search" value={status.searchBlockedReason ?? "Enabled"} />
         <Stat
           label="App-tracked requests this month (UTC)"
           value={
@@ -87,10 +89,6 @@ export default function Home() {
         </p>
         <PauseToggle paused={status.paused} />
       </section>
-
-      <p className="mt-8 text-sm opacity-70">
-        The search form arrives in the next milestone slice.
-      </p>
     </main>
   );
 }
