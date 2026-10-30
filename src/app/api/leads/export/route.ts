@@ -4,6 +4,7 @@ import { LEAD_STATUS_LABELS } from "@/lib/leads/leads";
 import { parseLeadListQuery } from "@/lib/leads/listFilters";
 import { listLeads } from "@/lib/server/leadsStore";
 import { getSupabaseAdmin } from "@/lib/server/supabase";
+import { deriveOpportunities } from "@/lib/websiteSignals";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
       "website_url",
       "website_status",
       "website_checked_at",
+      "website_opportunities",
       "first_contacted_at",
       "last_contacted_at",
       "lat",
@@ -57,6 +59,12 @@ export async function GET(request: NextRequest) {
       lead.website_url,
       lead.website_status,
       lead.website_checked_at,
+      deriveOpportunities({
+        websiteStatus: lead.website_status,
+        errorCategory: lead.website_error_category,
+        signals: lead.website_signals,
+        category: lead.place?.basic_category ?? null,
+      }).map((o) => o.title),
       lead.first_contacted_at,
       lead.last_contacted_at,
       lead.place?.lat,

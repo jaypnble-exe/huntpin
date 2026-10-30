@@ -3,7 +3,9 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
 import { BlockList, isIP, type LookupFunction } from "node:net";
+import zlib from "node:zlib";
 import { isSocialUrl } from "../places/webPresence";
+import { detectSignals, type WebsiteSignals } from "../websiteSignals";
 
 // Manual, lightweight website check (SSRF-protected). One GET per hop, only
 // the status line and headers are read; the body is never downloaded or stored.
@@ -16,6 +18,8 @@ export interface WebsiteCheckResult {
   httpStatus: number | null;
   finalUrl: string | null;
   errorCategory: string | null;
+  /** Website review signals; present only when the final page loaded (2xx). */
+  signals?: WebsiteSignals | null;
 }
 
 export const MAX_WEBSITE_URL_LENGTH = 2048;
@@ -127,15 +131,63 @@ function urlProblem(url: URL): string | null {
 export interface HopResponse {
   status: number;
   location: string | null;
+  /** Milliseconds until response headers arrived. */
+  elapsedMs?: number;
+  /** First MAX_HTML_BYTES of a 2xx HTML response, decoded; otherwise null. */
+  html?: string | null;
 }
+
+/** Upper bound on HTML read for the website review. Never stored. */
+export const MAX_HTML_BYTES = 256 * 1024;
 
 export interface WebsiteCheckDeps {
   resolve: (hostname: string) => Promise<{ address: string; family: number }[]>;
   request: (url: URL, address: string, family: number, timeoutMs: number) => Promise<HopResponse>;
 }
 
-/** One GET to a pinned, pre-validated IP. Resolves as soon as headers arrive. */
+/**
+ * Reads at most MAX_HTML_BYTES of decoded body, decompressing if needed, then
+ * stops. Resolves null for non-HTML or undecodable bodies.
+ */
+function readLimitedHtml(response: http.IncomingMessage): Promise<string | null> {
+  const contentType = String(response.headers["content-type"] ?? "").toLowerCase();
+  if (contentType && !contentType.includes("html")) return Promise.resolve(null);
+
+  const encoding = String(response.headers["content-encoding"] ?? "identity").toLowerCase().trim();
+  let stream: NodeJS.ReadableStream = response;
+  if (encoding === "gzip" || encoding === "x-gzip") stream = response.pipe(zlib.createGunzip());
+  else if (encoding === "deflate") stream = response.pipe(zlib.createInflate());
+  else if (encoding === "br") stream = response.pipe(zlib.createBrotliDecompress());
+  else if (encoding !== "identity" && encoding !== "") return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    let done = false;
+    const finish = (ok: boolean) => {
+      if (done) return;
+      done = true;
+      response.destroy();
+      if (stream !== response) (stream as NodeJS.ReadableStream & { destroy?: () => void }).destroy?.();
+      resolve(ok ? new TextDecoder("utf-8").decode(Buffer.concat(chunks).subarray(0, MAX_HTML_BYTES)) : null);
+    };
+    stream.on("data", (chunk: Buffer) => {
+      chunks.push(chunk);
+      size += chunk.length;
+      if (size >= MAX_HTML_BYTES) finish(true);
+    });
+    stream.on("end", () => finish(true));
+    stream.on("error", () => finish(size > 0));
+    response.on("aborted", () => finish(size > 0));
+  });
+}
+
+/**
+ * One GET to a pinned, pre-validated IP. For 2xx HTML responses, reads at most
+ * MAX_HTML_BYTES of the body; otherwise stops after the headers.
+ */
 export function requestHeadersOnce(url: URL, address: string, family: number, timeoutMs: number): Promise<HopResponse> {
+  const started = Date.now();
   return new Promise((resolve, reject) => {
     const isHttps = url.protocol === "https:";
     const hostname = url.hostname.replace(/^\[|\]$/g, "");
@@ -155,7 +207,7 @@ export function requestHeadersOnce(url: URL, address: string, family: number, ti
         headers: {
           "User-Agent": USER_AGENT,
           Accept: "text/html,application/xhtml+xml,*/*;q=0.8",
-          "Accept-Encoding": "identity",
+          "Accept-Encoding": "gzip, deflate, br",
           Connection: "close",
         },
         lookup: pinnedLookup,
@@ -164,11 +216,21 @@ export function requestHeadersOnce(url: URL, address: string, family: number, ti
         timeout: timeoutMs,
       },
       (response) => {
-        const location = response.headers.location;
-        resolve({ status: response.statusCode ?? 0, location: typeof location === "string" ? location : null });
-        // Never read the body.
-        response.destroy();
-        request.destroy();
+        const elapsedMs = Date.now() - started;
+        const status = response.statusCode ?? 0;
+        const header = response.headers.location;
+        const location = typeof header === "string" ? header : null;
+        if (status < 200 || status >= 300) {
+          // Redirects and errors: the body is never read.
+          resolve({ status, location, elapsedMs, html: null });
+          response.destroy();
+          request.destroy();
+          return;
+        }
+        readLimitedHtml(response).then((html) => {
+          resolve({ status, location, elapsedMs, html });
+          request.destroy();
+        });
       },
     );
     const hardTimeout = setTimeout(() => request.destroy(Object.assign(new Error("timeout"), { code: "ETIMEDOUT" })), timeoutMs);
@@ -203,14 +265,20 @@ function networkErrorResult(error: unknown, finalUrl: string): WebsiteCheckResul
   return unreachable("network_error");
 }
 
-function statusResult(status: number, finalUrl: string): WebsiteCheckResult {
+function statusResult(response: HopResponse, finalUrl: string): WebsiteCheckResult {
+  const status = response.status;
   const result = (s: WebsiteCheckStatus, errorCategory: string | null): WebsiteCheckResult => ({
     status: s,
     httpStatus: status,
     finalUrl,
     errorCategory,
   });
-  if (status >= 200 && status < 300) return result("reachable", null);
+  if (status >= 200 && status < 300) {
+    return {
+      ...result("reachable", null),
+      signals: detectSignals(response.html ?? null, { finalUrl, responseMs: response.elapsedMs ?? null }),
+    };
+  }
   if (status === 401 || status === 403) return result("needs_manual_review", "access_restricted");
   if (status === 429) return result("needs_manual_review", "rate_limited");
   if (status === 404 || status === 410) return result("unreachable", "not_found");
@@ -274,7 +342,7 @@ export async function checkWebsite(start: URL, deps: WebsiteCheckDeps = DEFAULT_
       }
       continue;
     }
-    return statusResult(response.status, url.href);
+    return statusResult(response, url.href);
   }
 
   return { status: "needs_manual_review", httpStatus: null, finalUrl: url.href, errorCategory: "too_many_redirects" };

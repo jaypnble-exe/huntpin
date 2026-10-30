@@ -160,8 +160,8 @@ export function LeadsDashboard() {
                     key={lead.id}
                     className={`border-b border-black/10 dark:border-white/10 ${lead.id === selectedId ? "bg-blue-500/10" : ""}`}
                   >
-                    <td className="py-2 pr-4" dir="auto">
-                      {lead.label ?? lead.place?.name ?? "Unnamed"}
+                    <td className="py-2 pr-4">
+                      <bdi>{lead.label ?? lead.place?.name ?? "Unnamed"}</bdi>
                       {lead.place?.has_instagram && <span className="ml-1 text-xs text-pink-700">IG</span>}
                     </td>
                     <td className="py-2 pr-4">{humanizeCategory(lead.place?.basic_category ?? null)}</td>

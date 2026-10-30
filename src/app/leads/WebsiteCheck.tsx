@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { isSocialUrl } from "@/lib/places/webPresence";
 import type { Lead } from "@/lib/server/leadsStore";
+import { deriveOpportunities, type WebsiteSignals } from "@/lib/websiteSignals";
 
 export const WEBSITE_STATUS_LABELS: Record<string, { label: string; className: string }> = {
   reachable: { label: "Reachable", className: "bg-green-100 text-green-800" },
@@ -70,8 +71,8 @@ export function WebsiteCheck({ lead, onChecked }: { lead: Lead; onChecked: (lead
         Website check
       </h3>
       <p className="mt-1 text-xs text-neutral-600">
-        One lightweight request; only the response status is read and stored. “Reachable” does not mean the site is
-        good, so look at it yourself before mentioning it to the business.
+        Reads the response and at most the first 256 KB of the homepage (no scripts or images). Only yes/no signals
+        are stored, never page content. Look at the site yourself before mentioning anything to the business.
       </p>
       {noWebsiteListed && !lead.website_checked_at && (
         <p className="mt-2">
@@ -128,8 +129,74 @@ export function WebsiteCheck({ lead, onChecked }: { lead: Lead; onChecked: (lead
               Ended at: {lead.website_final_url}
             </p>
           )}
+          {lead.website_signals && <SignalSummary signals={lead.website_signals} />}
         </div>
       )}
+
+      {lead.website_checked_at && <Opportunities lead={lead} />}
     </section>
+  );
+}
+
+function SignalSummary({ signals }: { signals: WebsiteSignals }) {
+  const facts = [
+    signals.https ? "HTTPS" : "no HTTPS",
+    signals.responseMs !== null ? `first response ${(signals.responseMs / 1000).toFixed(1)} s` : null,
+    signals.htmlRead ? (signals.mobileViewport ? "mobile viewport tag" : "no mobile viewport tag") : "page not readable",
+    signals.hasArabic === null ? null : signals.hasArabic ? "Arabic content" : "no Arabic content",
+    signals.sitePlatform ? `built with ${signals.sitePlatform}` : null,
+    signals.deliveryApps.length ? `delivery apps: ${signals.deliveryApps.join(", ")}` : null,
+    signals.bookingTools.length ? `booking: ${signals.bookingTools.join(", ")}` : null,
+    signals.hasForm === null ? null : signals.hasForm ? "has a form" : "no form",
+  ].filter(Boolean);
+  return <p className="text-neutral-600">Homepage: {facts.join(" · ")}</p>;
+}
+
+function Opportunities({ lead }: { lead: Lead }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const opportunities = deriveOpportunities({
+    websiteStatus: lead.website_status,
+    errorCategory: lead.website_error_category,
+    signals: lead.website_signals,
+    category: lead.place?.basic_category ?? null,
+  });
+
+  async function copy(key: string, text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+    } catch {
+      setCopied(null);
+    }
+  }
+
+  if (opportunities.length === 0) {
+    return <p className="mt-3 text-xs text-neutral-600">No obvious opportunities found on the homepage.</p>;
+  }
+  return (
+    <div className="mt-3">
+      <h4 className="text-sm font-semibold">Possible opportunities (verify first)</h4>
+      <ul className="mt-1 space-y-2">
+        {opportunities.map((o) => (
+          <li key={o.key} className="rounded-md border border-neutral-200 p-2">
+            <p className="font-medium">{o.title}</p>
+            <p className="text-xs text-neutral-600">{o.detail}</p>
+            {o.sentence && (
+              <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                <button type="button" onClick={() => copy(`${o.key}-en`, o.sentence!.en)} className="underline">
+                  {copied === `${o.key}-en` ? "Copied" : "Copy sentence (EN)"}
+                </button>
+                <button type="button" onClick={() => copy(`${o.key}-ar`, o.sentence!.ar)} className="underline">
+                  {copied === `${o.key}-ar` ? "Copied" : "Copy sentence (AR)"}
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1 text-xs text-neutral-600">
+        Based on the first part of the homepage only. Open the site yourself before mentioning anything to the business.
+      </p>
+    </div>
   );
 }

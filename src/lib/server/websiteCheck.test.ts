@@ -1,9 +1,11 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { gzipSync } from "node:zlib";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   checkWebsite,
   isPublicAddress,
+  MAX_HTML_BYTES,
   normalizeWebsiteUrl,
   requestHeadersOnce,
   type HopResponse,
@@ -95,11 +97,12 @@ describe("checkWebsite", () => {
         "https://www.cafe.sa/home": { status: 200, location: null },
       },
     );
-    expect(await checkWebsite(url("http://cafe.sa/"), d)).toEqual({
+    expect(await checkWebsite(url("http://cafe.sa/"), d)).toMatchObject({
       status: "reachable",
       httpStatus: 200,
       finalUrl: "https://www.cafe.sa/home",
       errorCategory: null,
+      signals: { https: true, htmlRead: false },
     });
     // Connected to the validated address.
     expect(d.request.mock.calls[0][1]).toBe("93.184.216.34");
@@ -176,6 +179,13 @@ describe("requestHeadersOnce", () => {
   beforeAll(async () => {
     server = createServer((req, res) => {
       if (req.url === "/slow") return; // never responds
+      if (req.url === "/redirect") return res.writeHead(302, { Location: "/next" }).end("redirect body");
+      if (req.url === "/image") return res.writeHead(200, { "Content-Type": "image/png" }).end(Buffer.alloc(1000));
+      if (req.url === "/gzip") {
+        // ~10 MB of HTML compressing to a few KB (a "zip bomb" in miniature).
+        const html = Buffer.concat([Buffer.from("<html>"), Buffer.alloc(10 * 1024 * 1024, "a")]);
+        return res.writeHead(200, { "Content-Type": "text/html", "Content-Encoding": "gzip" }).end(gzipSync(html));
+      }
       res.writeHead(200, { "Content-Type": "text/html" });
       // A large body that must not be downloaded.
       const chunk = Buffer.alloc(64 * 1024, "a");
@@ -195,12 +205,30 @@ describe("requestHeadersOnce", () => {
   });
 
   // The test server is on loopback, which checkWebsite blocks; this calls the
-  // low-level request directly to verify pinning, header-only reads and timeouts.
-  it("connects to the pinned address and stops after the headers", async () => {
+  // low-level request directly to verify pinning, the body cap and timeouts.
+  it("connects to the pinned address and reads at most MAX_HTML_BYTES", async () => {
     const response = await requestHeadersOnce(new URL(`http://unresolvable.invalid:${port}/`), "127.0.0.1", 4, 2000);
     expect(response.status).toBe(200);
+    expect(response.html?.length).toBeLessThanOrEqual(MAX_HTML_BYTES);
+    expect(response.html?.length).toBeGreaterThan(0);
+    expect(response.elapsedMs).toBeGreaterThanOrEqual(0);
     await new Promise((r) => setTimeout(r, 200));
     expect(bodyBytesSent).toBeLessThan(10 * 1024 * 1024);
+  });
+
+  it("decompresses gzip and caps the decompressed size", async () => {
+    const response = await requestHeadersOnce(new URL(`http://127.0.0.1:${port}/gzip`), "127.0.0.1", 4, 2000);
+    expect(response.html?.startsWith("<html>")).toBe(true);
+    expect(response.html?.length).toBeLessThanOrEqual(MAX_HTML_BYTES);
+  });
+
+  it("does not read bodies of redirects or non-HTML responses", async () => {
+    expect(await requestHeadersOnce(new URL(`http://127.0.0.1:${port}/redirect`), "127.0.0.1", 4, 2000)).toMatchObject({
+      status: 302,
+      location: "/next",
+      html: null,
+    });
+    expect((await requestHeadersOnce(new URL(`http://127.0.0.1:${port}/image`), "127.0.0.1", 4, 2000)).html).toBeNull();
   });
 
   it("times out", async () => {
