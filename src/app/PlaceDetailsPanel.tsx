@@ -41,7 +41,15 @@ function LinkList({ title, urls }: { title: string; urls: string[] }) {
   );
 }
 
-export function PlaceDetailsPanel({ id, onClose }: { id: string; onClose: () => void }) {
+export function PlaceDetailsPanel({
+  id,
+  onClose,
+  onLeadSaved,
+}: {
+  id: string;
+  onClose: () => void;
+  onLeadSaved?: () => void;
+}) {
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
@@ -88,7 +96,7 @@ export function PlaceDetailsPanel({ id, onClose }: { id: string; onClose: () => 
       )}
       {state.kind === "loaded" && (
         <>
-          <LeadSave placeId={state.place.id} />
+          <LeadSave placeId={state.place.id} onSaved={onLeadSaved} />
           <Details place={state.place} />
         </>
       )}
@@ -103,7 +111,7 @@ type LeadState =
   | { kind: "saved"; lead: Lead }
   | { kind: "error"; message: string };
 
-function LeadSave({ placeId }: { placeId: string }) {
+function LeadSave({ placeId, onSaved }: { placeId: string; onSaved?: () => void }) {
   const [state, setState] = useState<LeadState>({ kind: "loading" });
 
   useEffect(() => {
@@ -133,6 +141,7 @@ function LeadSave({ placeId }: { placeId: string }) {
       const body = await response.json();
       if (!response.ok) throw new Error(body?.message ?? "Could not save the lead.");
       setState({ kind: "saved", lead: body.lead });
+      onSaved?.();
     } catch (error) {
       setState({ kind: "error", message: error instanceof Error ? error.message : "Could not save the lead." });
     }

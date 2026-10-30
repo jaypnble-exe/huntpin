@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BBox } from "../places/areas";
 import { CATEGORY_GROUPS } from "../places/categories";
+import type { LeadStatus } from "../leads/leads";
 import type { PlaceFilters } from "../places/filters";
 import type { WebPresence } from "../places/webPresence";
 
@@ -19,6 +20,8 @@ export interface PlaceFeature {
     presence: WebPresence;
     instagram: boolean;
     category: string | null;
+    /** Status of the saved lead for this place, or null if not saved. */
+    leadStatus: LeadStatus | null;
   };
 }
 
@@ -55,6 +58,14 @@ interface MapRow {
   has_instagram: boolean;
   lat: number;
   lon: number;
+  // One-to-one (leads.overture_place_id is unique), so PostgREST returns an
+  // object or null; accept an array too in case the relationship is read as many.
+  lead: { lead_status: LeadStatus } | { lead_status: LeadStatus }[] | null;
+}
+
+function leadStatusOf(lead: MapRow["lead"]): LeadStatus | null {
+  const first = Array.isArray(lead) ? lead[0] : lead;
+  return first?.lead_status ?? null;
 }
 
 /** Escapes LIKE wildcards (and PostgREST's `*` alias) in user text. */
@@ -65,7 +76,9 @@ export function escapeLike(text: string): string {
 function buildMapQuery(supabase: SupabaseClient, [west, south, east, north]: BBox, filters: PlaceFilters) {
   let query = supabase
     .from("places")
-    .select("id,name,basic_category,web_presence,has_instagram,lat,lon")
+    .select(
+      `id,name,basic_category,web_presence,has_instagram,lat,lon,lead:leads${filters.saved === "only" ? "!inner" : ""}(lead_status)`,
+    )
     .gte("lon", west)
     .lte("lon", east)
     .gte("lat", south)
@@ -75,6 +88,7 @@ function buildMapQuery(supabase: SupabaseClient, [west, south, east, north]: BBo
   if (filters.instagramOnly) query = query.eq("has_instagram", true);
   if (filters.category) query = query.in("basic_category", [...CATEGORY_GROUPS[filters.category].categories]);
   if (filters.nameQuery) query = query.ilike("name", `%${escapeLike(filters.nameQuery)}%`);
+  if (filters.saved === "hide") query = query.is("lead", null);
   // Most reliable places first, so truncation drops the least reliable.
   return query.order("confidence", { ascending: false, nullsFirst: false }).order("id");
 }
@@ -112,6 +126,7 @@ export async function queryPlaces(
         presence: row.web_presence,
         instagram: row.has_instagram,
         category: row.basic_category,
+        leadStatus: leadStatusOf(row.lead),
       },
     })),
   };

@@ -132,7 +132,7 @@ Implement these features in order:
    - Generate drafts only; never send messages automatically.
    - Default general message:
 
-     > Hi! 👋 I came across your business on Google Maps and wanted to reach out.
+     > Hi! 👋 I came across your business online and wanted to reach out.
      >
      > I’m a web and mobile app developer, and I help businesses build and improve websites, develop custom systems and mobile applications, and implement AI automations to streamline their operations.
      >
@@ -140,6 +140,7 @@ Implement these features in order:
      >
      > Would you be open to a quick chat? 😊
 
+   - The owner changed "on Google Maps" to "online" on 2026-10-30, because leads now come from open data. An Arabic version lives with the English one in `src/lib/leads/outreach.ts`.
    - Allow the operator to edit and copy the draft.
    - Do not invent business-specific observations. Only mention a website issue if it was actually checked and supported.
    - Track contact date and outcome manually.

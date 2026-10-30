@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { csvCell, toCsv } from "./csv";
 import { canDraftOutreach, parseLeadPatch } from "./leads";
-import { DEFAULT_OUTREACH_MESSAGE, whatsappHref } from "./outreach";
+import { DEFAULT_OUTREACH_MESSAGE, OUTREACH_TEMPLATES, whatsappHref } from "./outreach";
 
 describe("parseLeadPatch", () => {
   it("maps browser fields to columns", () => {
@@ -65,9 +65,12 @@ describe("outreach", () => {
     expect(canDraftOutreach("do_not_contact")).toBe(false);
   });
 
-  it("uses the default message from CLAUDE.md", () => {
-    expect(DEFAULT_OUTREACH_MESSAGE.startsWith("Hi! 👋 I came across your business")).toBe(true);
+  it("uses the default message from CLAUDE.md, without claiming a source", () => {
+    expect(DEFAULT_OUTREACH_MESSAGE.startsWith("Hi! 👋 I came across your business online")).toBe(true);
     expect(DEFAULT_OUTREACH_MESSAGE.endsWith("Would you be open to a quick chat? 😊")).toBe(true);
+    for (const template of Object.values(OUTREACH_TEMPLATES)) {
+      expect(template.text).not.toMatch(/Google/i);
+    }
   });
 
   it("builds a WhatsApp link for one number", () => {

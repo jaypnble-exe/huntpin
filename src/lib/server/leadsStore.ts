@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { CATEGORY_GROUPS, type CategoryGroup } from "../places/categories";
 import type { WebPresence } from "../places/webPresence";
 import type { LeadPatch, LeadStatus } from "../leads/leads";
+import type { WebsiteCheckResult, WebsiteCheckStatus } from "./websiteCheck";
 
 export const MAX_LEADS_LISTED = 1000;
 
@@ -31,6 +32,12 @@ export interface Lead {
   created_at: string;
   updated_at: string;
   overture_place_id: string | null;
+  website_url: string | null;
+  website_status: "not_listed" | WebsiteCheckStatus | null;
+  website_http_status: number | null;
+  website_final_url: string | null;
+  website_error_category: string | null;
+  website_checked_at: string | null;
   place: LeadPlace | null;
 }
 
@@ -41,7 +48,8 @@ export interface LeadListFilters {
 }
 
 const LEAD_COLUMNS =
-  "id,label,operator_notes,lead_status,first_contacted_at,last_contacted_at,created_at,updated_at,overture_place_id";
+  "id,label,operator_notes,lead_status,first_contacted_at,last_contacted_at,created_at,updated_at,overture_place_id," +
+  "website_url,website_status,website_http_status,website_final_url,website_error_category,website_checked_at";
 const PLACE_COLUMNS =
   "name,basic_category,web_presence,has_instagram,phones,websites,socials,lat,lon,area,source_datasets,source_licenses";
 
@@ -151,6 +159,36 @@ export async function updateLead(
   if (error) throw new Error("lead_update_failed");
   if (!data || data.length === 0) throw new NotFoundError("lead_not_found");
 
+  const lead = await getLead(supabase, id);
+  if (!lead) throw new NotFoundError("lead_not_found");
+  return lead;
+}
+
+/**
+ * Stores a website check: the URL checked, outcome category, HTTP status and
+ * final URL. Never stores page content.
+ */
+export async function saveWebsiteCheck(
+  supabase: SupabaseClient,
+  id: string,
+  checkedUrl: string,
+  result: WebsiteCheckResult,
+  now = new Date(),
+): Promise<Lead> {
+  const { data, error } = await supabase
+    .from("leads")
+    .update({
+      website_url: checkedUrl,
+      website_status: result.status,
+      website_http_status: result.httpStatus,
+      website_final_url: result.finalUrl?.slice(0, 2048) ?? null,
+      website_error_category: result.errorCategory,
+      website_checked_at: now.toISOString(),
+    })
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error("website_check_save_failed");
+  if (!data || data.length === 0) throw new NotFoundError("lead_not_found");
   const lead = await getLead(supabase, id);
   if (!lead) throw new NotFoundError("lead_not_found");
   return lead;

@@ -10,14 +10,20 @@ import {
   MAX_NAME_QUERY_LENGTH,
   toSearchParams,
   type PlaceFilters,
+  type SavedFilter,
 } from "@/lib/places/filters";
 import { WEB_PRESENCE, type WebPresence } from "@/lib/places/webPresence";
 import type { PlaceFeatureCollection } from "@/lib/server/placesStore";
 import { LeadMap } from "./LeadMap";
 import { PlaceDetailsPanel } from "./PlaceDetailsPanel";
-import { INSTAGRAM_RING_COLOR, PRESENCE_STYLES } from "./placeStyles";
+import { INSTAGRAM_RING_COLOR, PRESENCE_STYLES, SAVED_LEAD_COLOR } from "./placeStyles";
 
 const EMPTY: PlaceFeatureCollection = { type: "FeatureCollection", features: [], truncated: false };
+const SAVED_OPTIONS: { value: SavedFilter; label: string }[] = [
+  { value: "all", label: "Show" },
+  { value: "hide", label: "Hide" },
+  { value: "only", label: "Only saved" },
+];
 const FETCH_DEBOUNCE_MS = 300;
 
 type LoadState =
@@ -49,6 +55,8 @@ export function PlacesExplorer() {
   const [load, setLoad] = useState<LoadState>({ kind: "idle" });
   const [selectedId, setSelectedId] = useState<string | null>(focus.placeId);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Bumped after saving a lead so its pin gets the saved halo.
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Debounce typing in the name search.
   useEffect(() => {
@@ -87,7 +95,7 @@ export function PlacesExplorer() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [bbox, filters]);
+  }, [bbox, filters, reloadKey]);
 
   const counts = useMemo(() => {
     const result: Partial<Record<WebPresence, number>> = {};
@@ -176,6 +184,23 @@ export function PlacesExplorer() {
               />
               Only places with Instagram
             </label>
+
+            <fieldset>
+              <legend className="font-semibold">Saved leads</legend>
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                {SAVED_OPTIONS.map(({ value, label }) => (
+                  <label key={value} className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="saved-filter"
+                      checked={filters.saved === value}
+                      onChange={() => setFilters((f) => ({ ...f, saved: value }))}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
 
             <label className="block">
               <span className="font-semibold">Category</span>
@@ -266,10 +291,20 @@ export function PlacesExplorer() {
             />
             Pink ring: has Instagram
           </li>
+          <li className="flex items-center gap-2">
+            <span aria-hidden className="inline-block h-3 w-3 rounded-full" style={{ background: SAVED_LEAD_COLOR }} />
+            Navy halo: saved lead
+          </li>
         </ul>
       </div>
 
-      {selectedId && <PlaceDetailsPanel id={selectedId} onClose={() => setSelectedId(null)} />}
+      {selectedId && (
+        <PlaceDetailsPanel
+          id={selectedId}
+          onClose={() => setSelectedId(null)}
+          onLeadSaved={() => setReloadKey((k) => k + 1)}
+        />
+      )}
     </div>
   );
 }

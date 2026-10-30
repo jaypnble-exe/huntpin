@@ -12,6 +12,7 @@ function row(i: number) {
     basic_category: "cafe",
     web_presence: "social_only",
     has_instagram: i % 2 === 0,
+    lead: i === 0 ? { lead_status: "contacted" } : null,
     lat: 21.58,
     lon: 39.15,
   };
@@ -41,6 +42,7 @@ describe("queryPlaces", () => {
       category: "hotels",
       instagramOnly: true,
       nameQuery: "50%_off*",
+      saved: "hide",
     });
 
     const url = new URL(String(fetchFn.mock.calls[0][0]));
@@ -54,13 +56,15 @@ describe("queryPlaces", () => {
     expect(params.get("basic_category")).toBe("in.(hotel,lodging,resort)");
     expect(params.get("name")).toBe("ilike.%50\\%\\_off\\*%");
     expect(params.get("order")).toBe("confidence.desc.nullslast,id.asc");
+    expect(params.get("select")).toContain("lead:leads(lead_status)");
+    expect(params.get("lead")).toBe("is.null");
 
     expect(result.truncated).toBe(false);
     expect(result.features[0]).toEqual({
       type: "Feature",
       id: "p0",
       geometry: { type: "Point", coordinates: [39.15, 21.58] },
-      properties: { id: "p0", name: "Place 0", presence: "social_only", instagram: true, category: "cafe" },
+      properties: { id: "p0", name: "Place 0", presence: "social_only", instagram: true, category: "cafe", leadStatus: "contacted" },
     });
   });
 
@@ -110,5 +114,15 @@ describe("place details", () => {
 
   it("escapes LIKE wildcards", () => {
     expect(escapeLike("a%b_c*d\\e")).toBe("a\\%b\\_c\\*d\\\\e");
+  });
+});
+
+describe("saved-lead filter", () => {
+  it("uses an inner join for saved leads only", async () => {
+    const { fetchFn, supabase } = setup(1);
+    await queryPlaces(supabase, BBOX, { ...DEFAULT_FILTERS, saved: "only" });
+    const params = new URL(String(fetchFn.mock.calls[0][0])).searchParams;
+    expect(params.get("select")).toContain("lead:leads!inner(lead_status)");
+    expect(params.get("lead")).toBeNull();
   });
 });

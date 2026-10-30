@@ -1,12 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { DEFAULT_OUTREACH_MESSAGE, whatsappHref } from "@/lib/leads/outreach";
+import { OUTREACH_TEMPLATES, whatsappHref, type OutreachLanguage } from "@/lib/leads/outreach";
 
 /** Editable, copyable draft. Nothing is ever sent automatically. */
 export function OutreachDraft({ phones }: { phones: string[] }) {
-  const [text, setText] = useState(DEFAULT_OUTREACH_MESSAGE);
+  const [language, setLanguage] = useState<OutreachLanguage>("en");
+  const [text, setText] = useState<string>(OUTREACH_TEMPLATES.en.text);
   const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
+
+  function switchLanguage(next: OutreachLanguage) {
+    const edited = text !== OUTREACH_TEMPLATES[language].text;
+    if (edited && !window.confirm("Switch language? Your edits to this draft will be replaced.")) return;
+    setLanguage(next);
+    setText(OUTREACH_TEMPLATES[next].text);
+    setCopied("idle");
+  }
 
   async function copy() {
     try {
@@ -23,19 +32,35 @@ export function OutreachDraft({ phones }: { phones: string[] }) {
 
   return (
     <section aria-labelledby="draft-heading">
-      <h3 id="draft-heading" className="font-semibold">
-        Outreach draft
-      </h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 id="draft-heading" className="font-semibold">
+          Outreach draft
+        </h3>
+        <div role="group" aria-label="Draft language" className="flex overflow-hidden rounded-md border border-neutral-300 text-xs">
+          {(Object.keys(OUTREACH_TEMPLATES) as OutreachLanguage[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={language === key}
+              onClick={() => language !== key && switchLanguage(key)}
+              className={`px-2.5 py-1 ${language === key ? "bg-neutral-900 text-white" : ""}`}
+            >
+              {OUTREACH_TEMPLATES[key].label}
+            </button>
+          ))}
+        </div>
+      </div>
       <p className="mt-1 text-xs text-neutral-600">
-        Edit before sending. The default text says you found them on Google Maps, so change that line if you didn’t.
-        Only mention website issues you have actually checked. Contact one business at a time, and stop if they ask.
+        Edit before sending. Only mention website issues you have actually checked. Contact one business at a time,
+        and stop if they ask.
       </p>
       <label className="sr-only" htmlFor="outreach-text">
         Message
       </label>
       <textarea
         id="outreach-text"
-        dir="auto"
+        dir={OUTREACH_TEMPLATES[language].dir}
+        lang={language}
         className="mt-2 min-h-56 w-full rounded-md border border-neutral-300 px-2 py-1.5"
         value={text}
         onChange={(e) => {

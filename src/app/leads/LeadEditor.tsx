@@ -15,6 +15,7 @@ import { googleMapsCoordinatesUrl, safeHref, telHref } from "@/lib/places/links"
 import type { Lead } from "@/lib/server/leadsStore";
 import { PRESENCE_STYLES } from "../placeStyles";
 import { OutreachDraft } from "./OutreachDraft";
+import { WebsiteCheck } from "./WebsiteCheck";
 
 const inputClass = "mt-1 w-full rounded-md border border-neutral-300 px-2 py-1.5";
 
@@ -252,6 +253,10 @@ export function LeadEditor({
           </p>
         )}
       </form>
+
+      <div className="mt-4 border-t border-neutral-200 pt-4">
+        <WebsiteCheck lead={lead} onChecked={applyLead} />
+      </div>
 
       <div className="mt-4 border-t border-neutral-200 pt-4">
         {canDraftOutreach(status) ? (

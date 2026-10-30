@@ -9,6 +9,7 @@ import { WEB_PRESENCE } from "@/lib/places/webPresence";
 import type { Lead } from "@/lib/server/leadsStore";
 import { PRESENCE_STYLES } from "../placeStyles";
 import { LeadEditor } from "./LeadEditor";
+import { WEBSITE_STATUS_LABELS } from "./WebsiteCheck";
 
 type LoadState = { kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string };
 
@@ -146,6 +147,7 @@ export function LeadsDashboard() {
                 <th scope="col" className="py-2 pr-4">Category</th>
                 <th scope="col" className="py-2 pr-4">Web presence</th>
                 <th scope="col" className="py-2 pr-4">Status</th>
+                <th scope="col" className="py-2 pr-4">Website check</th>
                 <th scope="col" className="py-2 pr-4">Last contacted</th>
                 <th scope="col" className="py-2">Actions</th>
               </tr>
@@ -172,6 +174,12 @@ export function LeadsDashboard() {
                       )}
                     </td>
                     <td className="py-2 pr-4">{LEAD_STATUS_LABELS[lead.lead_status]}</td>
+                    <td className="py-2 pr-4">
+                      {lead.website_status ? WEBSITE_STATUS_LABELS[lead.website_status]?.label : "Not checked"}
+                      {lead.website_checked_at && (
+                        <span className="block text-xs opacity-70">{formatDate(lead.website_checked_at)}</span>
+                      )}
+                    </td>
                     <td className="py-2 pr-4">{formatDate(lead.last_contacted_at)}</td>
                     <td className="py-2">
                       <button type="button" onClick={() => select(lead.id)} className="underline">

@@ -12,6 +12,7 @@ describe("place filters", () => {
       category: "food" as const,
       instagramOnly: true,
       nameQuery: "قهوة",
+      saved: "hide" as const,
     };
     const parsed = parsePlaceQuery(toSearchParams(JEDDAH_VIEW, filters));
     expect(parsed).toEqual({ ok: true, bbox: JEDDAH_VIEW, filters });
@@ -29,6 +30,7 @@ describe("place filters", () => {
     [{ bbox: JEDDAH_VIEW.join(","), presence: "social_only,hacked" }, /presence/],
     [{ bbox: JEDDAH_VIEW.join(","), minConfidence: "2" }, /minConfidence/],
     [{ bbox: JEDDAH_VIEW.join(","), category: "weapons" }, /category/],
+    [{ bbox: JEDDAH_VIEW.join(","), saved: "maybe" }, /saved/],
     [{ bbox: JEDDAH_VIEW.join(","), q: "x".repeat(61) }, /q must/],
     [{ bbox: JEDDAH_VIEW.join(","), q: "a\u0000b" }, /q must/],
   ])("rejects %o", (params, error) => {

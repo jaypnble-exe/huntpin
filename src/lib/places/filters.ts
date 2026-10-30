@@ -12,7 +12,11 @@ export interface PlaceFilters {
   category: CategoryGroup | null;
   instagramOnly: boolean;
   nameQuery: string;
+  saved: SavedFilter;
 }
+
+export const SAVED_FILTERS = ["all", "hide", "only"] as const;
+export type SavedFilter = (typeof SAVED_FILTERS)[number];
 
 export const DEFAULT_FILTERS: PlaceFilters = {
   presence: ["social_only", "no_website_listed"],
@@ -20,6 +24,7 @@ export const DEFAULT_FILTERS: PlaceFilters = {
   category: null,
   instagramOnly: false,
   nameQuery: "",
+  saved: "all",
 };
 
 export const CONFIDENCE_OPTIONS = [0, 0.5, 0.7, 0.9] as const;
@@ -32,6 +37,7 @@ export function toSearchParams(bbox: BBox, filters: PlaceFilters): URLSearchPara
   });
   if (filters.category) params.set("category", filters.category);
   if (filters.instagramOnly) params.set("instagram", "1");
+  if (filters.saved !== "all") params.set("saved", filters.saved);
   const name = filters.nameQuery.trim();
   if (name) params.set("q", name);
   return params;
@@ -62,6 +68,11 @@ export function parsePlaceQuery(params: URLSearchParams): ParsedPlaceQuery {
     return { ok: false, error: "unknown category" };
   }
 
+  const saved = params.get("saved") ?? "all";
+  if (!(SAVED_FILTERS as readonly string[]).includes(saved)) {
+    return { ok: false, error: "saved must be all, hide or only" };
+  }
+
   const nameQuery = (params.get("q") ?? "").trim();
   if (nameQuery.length > MAX_NAME_QUERY_LENGTH || /[\u0000-\u001f\u007f]/.test(nameQuery)) {
     return { ok: false, error: `q must be at most ${MAX_NAME_QUERY_LENGTH} printable characters` };
@@ -76,6 +87,7 @@ export function parsePlaceQuery(params: URLSearchParams): ParsedPlaceQuery {
       category: categoryRaw,
       instagramOnly: params.get("instagram") === "1",
       nameQuery,
+      saved: saved as SavedFilter,
     },
   };
 }

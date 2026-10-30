@@ -5,7 +5,7 @@ import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 import type { Area, BBox } from "@/lib/places/areas";
 import type { PlaceFeatureCollection } from "@/lib/server/placesStore";
-import { INSTAGRAM_RING_COLOR, PRESENCE_STYLES } from "./placeStyles";
+import { INSTAGRAM_RING_COLOR, PRESENCE_STYLES, SAVED_LEAD_COLOR } from "./placeStyles";
 
 // OpenFreeMap: free vector tiles, no key or account.
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
@@ -62,6 +62,18 @@ export function LeadMap({ area, data, selectedId, onBoundsChange, onSelect }: Le
 
       map.on("load", () => {
         map!.addSource(SOURCE_ID, { type: "geojson", data: latest.current.data });
+        // Halo under places already saved as leads.
+        map!.addLayer({
+          id: "places-saved",
+          type: "circle",
+          source: SOURCE_ID,
+          filter: ["to-boolean", ["get", "leadStatus"]],
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 5, 14, 9, 17, 13],
+            "circle-color": SAVED_LEAD_COLOR,
+            "circle-opacity": 0.85,
+          },
+        });
         map!.addLayer({
           id: "places-circles",
           type: "circle",

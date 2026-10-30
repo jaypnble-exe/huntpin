@@ -25,3 +25,4 @@ export const PRESENCE_STYLES: Record<WebPresence, { color: string; label: string
 };
 
 export const INSTAGRAM_RING_COLOR = "#db2777";
+export const SAVED_LEAD_COLOR = "#1e3a8a";
