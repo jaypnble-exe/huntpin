@@ -41,7 +41,7 @@ export function leadOpportunities(lead: Lead) {
   });
 }
 
-function defaultUrl(lead: Lead): string {
+export function defaultUrl(lead: Lead): string {
   if (lead.website_url) return lead.website_url;
   return lead.place?.websites.find((url) => !isSocialUrl(url)) ?? "";
 }

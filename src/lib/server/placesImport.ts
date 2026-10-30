@@ -18,6 +18,28 @@ export function isValidRelease(release: string): boolean {
   return RELEASE_PATTERN.test(release);
 }
 
+const RELEASE_LISTING_URL = "https://overturemaps-us-west-2.s3.amazonaws.com/?list-type=2&prefix=release/&delimiter=/";
+
+function compareReleases(a: string, b: string): number {
+  const [dateA, revA] = a.split(".");
+  const [dateB, revB] = b.split(".");
+  return dateA === dateB ? Number(revA) - Number(revB) : dateA < dateB ? -1 : 1;
+}
+
+/** Newest Overture release, from the public bucket listing (no account needed). */
+export async function latestOvertureRelease(fetchFn: typeof fetch = fetch): Promise<string> {
+  const response = await fetchFn(RELEASE_LISTING_URL, { signal: AbortSignal.timeout(20_000) });
+  if (!response.ok) throw new Error(`Overture release listing failed (HTTP ${response.status})`);
+  const xml = await response.text();
+  const releases = [...xml.matchAll(/<Prefix>release\/([^/<]+)\/<\/Prefix>/g)]
+    .map((m) => m[1])
+    .filter(isValidRelease)
+    .sort(compareReleases);
+  const latest = releases.at(-1);
+  if (!latest) throw new Error("No Overture releases found in the listing");
+  return latest;
+}
+
 /**
  * DuckDB query for one bounding box of the Overture places theme. Inputs are
  * validated (release pattern, finite numbers) before being interpolated.
@@ -55,7 +77,7 @@ export interface OverturePlace {
 
 export interface PlaceRow {
   id: string;
-  source: "overture";
+  source: "overture" | "foursquare";
   source_release: string;
   area: string;
   name: string | null;
@@ -72,7 +94,9 @@ export interface PlaceRow {
   lon: number;
   source_datasets: string[];
   source_licenses: string[];
-  /** Places in the same import sharing this name; set by applyChainsAndScores. */
+  /** Foursquare last-updated date; null for Overture. */
+  refreshed_on: string | null;
+  /** Places in the same area sharing this name; set by rescoring. */
   chain_size: number;
   lead_score: number;
 }
@@ -121,6 +145,7 @@ export function toPlaceRow(
     lon,
     source_datasets: textList(raw.source_datasets),
     source_licenses: textList(raw.source_licenses),
+    refreshed_on: null,
     chain_size: 1,
     lead_score: 0,
   };
@@ -139,6 +164,7 @@ export function applyChainsAndScores(rows: PlaceRow[], targets?: CategoryGroup[]
         category: row.basic_category,
         confidence: row.confidence,
         chainSize: chain_size,
+        refreshedOn: row.refreshed_on,
       },
       targets,
     );

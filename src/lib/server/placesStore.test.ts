@@ -53,7 +53,7 @@ describe("queryPlaces", () => {
     expect(params.getAll("lon")).toEqual(["gte.39.13", "lte.39.17"]);
     expect(params.getAll("lat")).toEqual(["gte.21.57", "lte.21.6"]);
     expect(params.get("web_presence")).toBe("in.(social_only,no_website_listed)");
-    expect(params.get("confidence")).toBe("gte.0.5");
+    expect(params.get("or")).toBe("(confidence.gte.0.5,confidence.is.null)");
     expect(params.get("has_instagram")).toBe("eq.true");
     expect(params.get("basic_category")).toBe("in.(hotel,lodging,resort)");
     expect(params.get("name")).toBe("ilike.%50\\%\\_off\\*%");

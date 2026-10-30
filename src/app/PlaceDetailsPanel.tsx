@@ -255,7 +255,7 @@ function Details({ place }: { place: PlaceDetails }) {
         <dt className="text-neutral-600">Licences</dt>
         <dd>{place.source_licenses.join(", ") || "Unknown"}</dd>
         <dt className="text-neutral-600">Data release</dt>
-        <dd>Overture {place.source_release}</dd>
+        <dd>{place.source === "foursquare" ? "Foursquare OS Places (imported " + place.source_release.replace("fsq-", "") + ")" : "Overture " + place.source_release}</dd>
       </dl>
       {fromFoursquare && (
         <p className="text-xs text-neutral-600">Copyright 2024 Foursquare Labs, Inc. All rights reserved.</p>

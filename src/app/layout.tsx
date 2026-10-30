@@ -26,6 +26,9 @@ export default function RootLayout({
             <Link href="/leads" className="hover:underline">
               Leads
             </Link>
+            <Link href="/summary" className="hover:underline">
+              Summary
+            </Link>
             <Link href="/google" className="hover:underline">
               Google search
             </Link>

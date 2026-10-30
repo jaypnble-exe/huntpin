@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { validateBBox } from "../places/areas";
 import {
   applyChainsAndScores,
+  latestOvertureRelease,
   overturePlacesQuery,
   summarize,
   toPlaceRow,
@@ -50,6 +51,7 @@ describe("toPlaceRow", () => {
       lon: 39.15,
       source_datasets: ["meta"],
       source_licenses: ["CDLA-Permissive-2.0"],
+      refreshed_on: null,
       chain_size: 1,
       lead_score: 0,
     });
@@ -145,5 +147,24 @@ describe("applyChainsAndScores", () => {
     // social_only 30 + phone 15 + instagram 10 + target category 15 + confidence 0.8 → 10
     expect(scored[0]).toMatchObject({ chain_size: 1, lead_score: 80 });
     expect(scored.slice(1).map((r) => [r.chain_size, r.lead_score])).toEqual([[3, 5], [3, 5], [3, 5]]);
+  });
+});
+
+describe("latestOvertureRelease", () => {
+  it("picks the newest valid release, including revisions", async () => {
+    const xml = [
+      "<Prefix>release/</Prefix>",
+      "<Prefix>release/2026-09-23.0/</Prefix>",
+      "<Prefix>release/2026-10-21.0/</Prefix>",
+      "<Prefix>release/2026-10-21.1/</Prefix>",
+      "<Prefix>release/not-a-release/</Prefix>",
+    ].join("");
+    const fetchFn = vi.fn<typeof fetch>(async () => new Response(xml, { status: 200 }));
+    expect(await latestOvertureRelease(fetchFn)).toBe("2026-10-21.1");
+  });
+
+  it("fails clearly when the listing is unavailable", async () => {
+    const fetchFn = vi.fn<typeof fetch>(async () => new Response("", { status: 503 }));
+    await expect(latestOvertureRelease(fetchFn)).rejects.toThrow(/HTTP 503/);
   });
 });

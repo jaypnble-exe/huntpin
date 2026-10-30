@@ -49,6 +49,7 @@ export interface PlaceDetails {
   operating_status: string | null;
   lat: number;
   lon: number;
+  source: "overture" | "foursquare";
   source_release: string;
   source_datasets: string[];
   source_licenses: string[];
@@ -94,7 +95,9 @@ function buildMapQuery(supabase: SupabaseClient, [west, south, east, north]: BBo
     .gte("lat", south)
     .lte("lat", north)
     .in("web_presence", filters.presence);
-  if (filters.minConfidence > 0) query = query.gte("confidence", filters.minConfidence);
+  // Confidence is an Overture score; Foursquare places (null) are kept and are
+  // pre-filtered to recently updated ones at import instead.
+  if (filters.minConfidence > 0) query = query.or(`confidence.gte.${filters.minConfidence},confidence.is.null`);
   if (filters.instagramOnly) query = query.eq("has_instagram", true);
   if (filters.category) query = query.in("basic_category", [...CATEGORY_GROUPS[filters.category].categories]);
   if (filters.nameQuery) query = query.ilike("name", `%${escapeLike(filters.nameQuery)}%`);
@@ -159,7 +162,7 @@ export async function getPlaceDetails(supabase: SupabaseClient, id: string): Pro
   const { data, error } = await supabase
     .from("places")
     .select(
-      "id,name,basic_category,websites,socials,phones,web_presence,has_instagram,confidence,operating_status,lat,lon,source_release,source_datasets,source_licenses,lead_score,chain_size",
+      "id,name,basic_category,websites,socials,phones,web_presence,has_instagram,confidence,operating_status,lat,lon,source,source_release,source_datasets,source_licenses,lead_score,chain_size",
     )
     .eq("id", id)
     .maybeSingle();

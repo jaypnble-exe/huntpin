@@ -8,6 +8,7 @@ import { CATEGORY_GROUPS, humanizeCategory, isCategoryGroup } from "@/lib/places
 import { WEB_PRESENCE } from "@/lib/places/webPresence";
 import type { Lead } from "@/lib/server/leadsStore";
 import { PRESENCE_STYLES } from "../placeStyles";
+import { BatchReview } from "./BatchReview";
 import { LeadEditor } from "./LeadEditor";
 import { leadOpportunities, WEBSITE_STATUS_LABELS } from "./WebsiteCheck";
 import { isDue, localDate, wantsFollowUp } from "@/lib/leads/followUps";
@@ -82,7 +83,8 @@ export function LeadsDashboard() {
           <h1 className="text-2xl font-bold">Leads</h1>
           <p className="text-sm opacity-80">Saved from the map. Status, notes and contact dates are yours to manage.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <BatchReview leads={sorted} onUpdated={(lead) => setLeads((all) => all.map((l) => (l.id === lead.id ? lead : l)))} />
           <button
             type="button"
             aria-pressed={dueOnly}

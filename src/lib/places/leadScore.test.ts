@@ -42,6 +42,13 @@ describe("scorePlace", () => {
     expect(scorePlace({ ...BASE, category: "hotel" }, ["hotels"])).toBe(90);
   });
 
+  it("uses Foursquare's last-updated date when there is no confidence", () => {
+    const fsq = { ...BASE, confidence: null, today: "2026-10-30" };
+    expect(scorePlace({ ...fsq, refreshedOn: "2026-03-01" })).toBe(85);
+    expect(scorePlace({ ...fsq, refreshedOn: "2025-03-01" })).toBe(80);
+    expect(scorePlace({ ...fsq, refreshedOn: "2023-03-01" })).toBe(75);
+  });
+
   it("caps the review bonus", () => {
     expect(reviewBonus(0)).toBe(0);
     expect(reviewBonus(2)).toBe(6);

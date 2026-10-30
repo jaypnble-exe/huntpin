@@ -22,10 +22,11 @@ import {
   type PlaceRow,
 } from "../src/lib/server/placesImport";
 import { createSupabaseAdmin } from "../src/lib/server/supabase";
+import { prunePlaces, rescoreArea } from "../src/lib/server/rescore";
 import { parseTargetGroups } from "../src/lib/places/leadScore";
 
 const USAGE = `Usage:
-  npm run import:places -- --area <${Object.keys(AREAS).join("|")}> [--release ${DEFAULT_OVERTURE_RELEASE}] [--dry-run]
+  npm run import:places -- --area <${Object.keys(AREAS).join("|")}> [--release ${DEFAULT_OVERTURE_RELEASE}] [--prune] [--dry-run]
   npm run import:places -- --bbox west,south,east,north --name "City" [--release ...] [--dry-run]`;
 
 function fail(message: string): never {
@@ -70,6 +71,7 @@ async function main() {
       name: { type: "string" },
       release: { type: "string", default: DEFAULT_OVERTURE_RELEASE },
       "dry-run": { type: "boolean", default: false },
+      prune: { type: "boolean", default: false },
     },
     strict: true,
   });
@@ -111,6 +113,13 @@ async function main() {
   try {
     await upsertPlaces(supabase, rows, (done) => process.stdout.write(`\rUpserted ${done}/${rows.length}`));
     process.stdout.write("\n");
+    if (values.prune) {
+      const pruned = await prunePlaces(supabase, area.name, "overture", release, rows.length);
+      console.log(pruned.skipped ? `Prune skipped: ${pruned.skipped}.` : `Removed ${pruned.removed} places no longer in Overture.`);
+    }
+    // Chains and scores span all sources in the area (e.g. Foursquare too).
+    const rescored = await rescoreArea(supabase, area.name, targets);
+    console.log(`Rescored ${rescored.rows} places in ${area.name} (${rescored.changed} changed).`);
     await supabase
       .from("place_imports")
       .update({ status: "success", row_count: rows.length, completed_at: new Date().toISOString() })

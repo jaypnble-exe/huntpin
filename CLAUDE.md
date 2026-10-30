@@ -41,8 +41,19 @@ Google-specific sections below.
 - **Google Places stays optional** and off by default. All Google safeguards
   below still apply to it. Never mix Google Places content into the `places`
   table.
-- **Foursquare OS Places** (adds Instagram handles) requires the owner to
-  create a Places Portal account and token. Do not add it without them.
+- **Foursquare OS Places** (Apache-2.0, "Copyright 2024 Foursquare Labs, Inc.
+  All rights reserved.") is the second source: `npm run import:foursquare --
+  --area <name>` with `FOURSQUARE_PLACES_TOKEN` in `.env.local` (never print
+  it). It adds open, recently updated business places not already on the
+  map (ids prefixed `fsq:`) and Instagram handles for matching Overture
+  places. Chain sizes and lead scores are recomputed across all sources by
+  `rescoreArea` after every import.
+- **Refresh:** `npm run refresh:places` re-imports the newest Overture release
+  and Foursquare with pruning. Pruning never removes places saved as leads,
+  and is skipped when an import is under half the existing size.
+- **Batch website review** is allowed only as an operator-clicked action on
+  saved leads: at most 20 per run, one check every 7 seconds, skipping leads
+  checked in the last 30 days and opted-out leads. Never schedule it.
 - **Never scrape Instagram, Facebook or Google Maps** to find sellers.
 - Zero cost remains a hard requirement: free tiers only, no paid services.
 

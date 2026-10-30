@@ -24,6 +24,16 @@ export interface ScoreInput {
   category: string | null;
   confidence: number | null;
   chainSize: number;
+  /** When the source last updated the place (Foursquare), YYYY-MM-DD. */
+  refreshedOn?: string | null;
+  /** Reference date for refreshedOn (defaults to now). */
+  today?: string;
+}
+
+function monthsBetween(from: string, to: string): number {
+  const a = new Date(`${from}T00:00:00Z`);
+  const b = new Date(`${to}T00:00:00Z`);
+  return (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth());
 }
 
 export interface ScorePart {
@@ -60,9 +70,16 @@ export function scoreParts(input: ScoreInput, targets: CategoryGroup[] = DEFAULT
   if (targeted) parts.push({ label: "Target category", points: 15 });
 
   const c = input.confidence;
-  const confidencePoints = c === null ? 5 : c >= 0.9 ? 15 : c >= 0.7 ? 10 : c >= 0.5 ? 5 : 0;
-  if (confidencePoints > 0) {
-    parts.push({ label: c === null ? "Existence not scored" : `Likely still exists (${Math.round(c * 100)}%)`, points: confidencePoints });
+  if (c !== null) {
+    const points = c >= 0.9 ? 15 : c >= 0.7 ? 10 : c >= 0.5 ? 5 : 0;
+    if (points > 0) parts.push({ label: `Likely still exists (${Math.round(c * 100)}%)`, points });
+  } else if (input.refreshedOn) {
+    // Foursquare has no existence score; recent updates are the next best signal.
+    const months = monthsBetween(input.refreshedOn, input.today ?? new Date().toISOString().slice(0, 10));
+    if (months <= 12) parts.push({ label: "Updated in the last year", points: 10 });
+    else if (months <= 24) parts.push({ label: "Updated in the last 2 years", points: 5 });
+  } else {
+    parts.push({ label: "Existence not scored", points: 5 });
   }
   return parts;
 }

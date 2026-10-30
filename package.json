@@ -11,7 +11,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "import:places": "node --env-file=.env.local --conditions=react-server --import tsx scripts/import-overture.ts"
+    "import:places": "node --env-file=.env.local --conditions=react-server --import tsx scripts/import-overture.ts",
+    "import:foursquare": "node --env-file=.env.local --conditions=react-server --import tsx scripts/import-foursquare.ts",
+    "refresh:places": "node --env-file=.env.local --conditions=react-server --import tsx scripts/refresh-places.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

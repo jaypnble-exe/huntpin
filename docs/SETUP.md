@@ -86,6 +86,21 @@ not Google. Downloading it is free and needs no account.
 4. Other cities: add them to `src/lib/places/areas.ts`, or pass
    `--bbox west,south,east,north --name "City"` (at most 1 degree each way).
 
+**Foursquare (optional second source).** With `FOURSQUARE_PLACES_TOKEN` from
+the Foursquare Places Portal in `.env.local`, run migration
+`007_foursquare_and_refresh.sql`, then
+`npm run import:foursquare -- --area jeddah` (add `--dry-run` to preview). It
+adds open business places updated since 2024 that are not already on the map,
+and Instagram handles for matching places. Takes about a minute for Jeddah.
+
+**Monthly refresh.** `npm run refresh:places` imports the newest Overture
+release and Foursquare for every area, removes places that disappeared (never
+saved leads; skipped if an import looks too small), and rescores. To run it
+automatically on the 5th of each month at 03:00 while you are logged in:
+`powershell -ExecutionPolicy Bypass -File scripts\register-refresh-task.ps1`.
+Output goes to `logs\refresh.log`. Remove the task with
+`schtasks /Delete /TN "LeadRadar monthly places refresh" /F`.
+
 **Licences and attribution.** Each record keeps its source datasets and
 licences: CDLA-Permissive-2.0 (Meta, Microsoft and others), Apache-2.0
 (Foursquare: "Copyright 2024 Foursquare Labs, Inc. All rights reserved.") and
