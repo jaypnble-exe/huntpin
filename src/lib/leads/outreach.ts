@@ -120,5 +120,7 @@ export function buildDraft({
 export function whatsappHref(phone: string, message: string): string | null {
   const digits = phone.replace(/\D/g, "");
   if (digits.length < 8 || digits.length > 15) return null;
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  // api.whatsapp.com keeps emojis in prefilled text; wa.me links can turn them into "?".
+  const params = new URLSearchParams({ phone: digits, text: message });
+  return `https://api.whatsapp.com/send?${params.toString().replace(/\+/g, "%20")}`;
 }

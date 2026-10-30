@@ -101,8 +101,16 @@ describe("outreach", () => {
 
   it("builds a WhatsApp link for one number", () => {
     const href = whatsappHref("+966 55 441 1817", "Hi & bye");
-    expect(href).toBe("https://wa.me/966554411817?text=Hi%20%26%20bye");
+    expect(href).toBe("https://api.whatsapp.com/send?phone=966554411817&text=Hi%20%26%20bye");
     expect(whatsappHref("123", "x")).toBeNull();
+  });
+
+  it("keeps emojis, Arabic and line breaks intact in the WhatsApp link", () => {
+    const message = "Hi! 👋\n\nمرحباً 😊 a+b";
+    const href = whatsappHref("966554411817", message)!;
+    expect(href).toContain("%F0%9F%91%8B"); // 👋 as UTF-8
+    expect(href).not.toContain("+");
+    expect(new URL(href).searchParams.get("text")).toBe(message);
   });
 });
 
