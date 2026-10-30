@@ -13,6 +13,7 @@ describe("place filters", () => {
       instagramOnly: true,
       nameQuery: "قهوة",
       saved: "hide" as const,
+      hideChains: false,
     };
     const parsed = parsePlaceQuery(toSearchParams(JEDDAH_VIEW, filters));
     expect(parsed).toEqual({ ok: true, bbox: JEDDAH_VIEW, filters });

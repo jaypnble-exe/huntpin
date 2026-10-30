@@ -13,6 +13,8 @@ export interface PlaceFilters {
   instagramOnly: boolean;
   nameQuery: string;
   saved: SavedFilter;
+  /** Hide places whose name appears at 3+ locations (chains). */
+  hideChains: boolean;
 }
 
 export const SAVED_FILTERS = ["all", "hide", "only"] as const;
@@ -25,6 +27,7 @@ export const DEFAULT_FILTERS: PlaceFilters = {
   instagramOnly: false,
   nameQuery: "",
   saved: "all",
+  hideChains: true,
 };
 
 export const CONFIDENCE_OPTIONS = [0, 0.5, 0.7, 0.9] as const;
@@ -38,6 +41,7 @@ export function toSearchParams(bbox: BBox, filters: PlaceFilters): URLSearchPara
   if (filters.category) params.set("category", filters.category);
   if (filters.instagramOnly) params.set("instagram", "1");
   if (filters.saved !== "all") params.set("saved", filters.saved);
+  if (!filters.hideChains) params.set("chains", "show");
   const name = filters.nameQuery.trim();
   if (name) params.set("q", name);
   return params;
@@ -88,6 +92,7 @@ export function parsePlaceQuery(params: URLSearchParams): ParsedPlaceQuery {
       instagramOnly: params.get("instagram") === "1",
       nameQuery,
       saved: saved as SavedFilter,
+      hideChains: params.get("chains") !== "show",
     },
   };
 }

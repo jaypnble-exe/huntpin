@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { csvCell, toCsv } from "./csv";
 import { canDraftOutreach, parseLeadPatch } from "./leads";
-import { DEFAULT_OUTREACH_MESSAGE, OUTREACH_TEMPLATES, whatsappHref } from "./outreach";
+import {
+  buildDraft,
+  DEFAULT_OUTREACH_MESSAGE,
+  defaultLanguage,
+  namePart,
+  OUTREACH_TEMPLATES,
+  whatsappHref,
+} from "./outreach";
 
 describe("parseLeadPatch", () => {
   it("maps browser fields to columns", () => {
@@ -30,6 +37,14 @@ describe("parseLeadPatch", () => {
     expect(parseLeadPatch({ notes: "   " })).toEqual({ ok: true, markContacted: false, patch: { operator_notes: null } });
   });
 
+  it("accepts confirmed opportunity keys, deduplicated", () => {
+    expect(parseLeadPatch({ confirmedOpportunities: ["no_https", "no_arabic", "no_https"] })).toEqual({
+      ok: true,
+      markContacted: false,
+      patch: { confirmed_opportunities: ["no_https", "no_arabic"] },
+    });
+  });
+
   it("accepts markContacted on its own", () => {
     expect(parseLeadPatch({ markContacted: true })).toEqual({ ok: true, markContacted: true, patch: {} });
   });
@@ -45,6 +60,9 @@ describe("parseLeadPatch", () => {
     [{ firstContactedOn: "2026-02-30" }, /real date/],
     [{ lastContactedOn: "yesterday" }, /YYYY-MM-DD/],
     [{ markContacted: "yes" }, /boolean/],
+    [{ confirmedOpportunities: "no_https" }, /confirmedOpportunities/],
+    [{ confirmedOpportunities: ["DROP TABLE"] }, /confirmedOpportunities/],
+    [{ confirmedOpportunities: Array.from({ length: 21 }, (_, i) => "k" + "x".repeat(i)) }, /confirmedOpportunities/],
   ])("rejects %o", (body, error) => {
     const result = parseLeadPatch(body);
     expect(result.ok).toBe(false);
@@ -77,6 +95,42 @@ describe("outreach", () => {
     const href = whatsappHref("+966 55 441 1817", "Hi & bye");
     expect(href).toBe("https://wa.me/966554411817?text=Hi%20%26%20bye");
     expect(whatsappHref("123", "x")).toBeNull();
+  });
+});
+
+describe("personalised drafts", () => {
+  it("picks the name part that matches the language", () => {
+    expect(namePart("Basic Cafe بيسك كافيه", "en")).toBe("Basic Cafe");
+    expect(namePart("Basic Cafe بيسك كافيه", "ar")).toBe("بيسك كافيه");
+    expect(namePart("Dr. Shereen Ismail Buheis الدكتورة شيرين", "en")).toBe("Dr. Shereen Ismail Buheis");
+    expect(namePart("سرايا عابدين", "en")).toBe("سرايا عابدين");
+    expect(namePart("  ", "en")).toBeNull();
+  });
+
+  it("defaults to Arabic only for Arabic-only names", () => {
+    expect(defaultLanguage("سرايا عابدين")).toBe("ar");
+    expect(defaultLanguage("Basic Cafe بيسك كافيه")).toBe("en");
+    expect(defaultLanguage(null)).toBe("en");
+  });
+
+  it("personalises the greeting and inserts confirmed observations after the intro", () => {
+    const draft = buildDraft({
+      language: "en",
+      name: "Basic Cafe",
+      sentences: ["I noticed your website doesn’t seem to have an Arabic version."],
+    });
+    const paragraphs = draft.split("\n\n");
+    expect(paragraphs[0]).toBe("Hi Basic Cafe team! 👋 I came across your business online and wanted to reach out.");
+    expect(paragraphs[1]).toMatch(/^I’m a web and mobile app developer/);
+    expect(paragraphs[2]).toBe(
+      "I noticed your website doesn’t seem to have an Arabic version. I’d be happy to help with that.",
+    );
+    expect(paragraphs).toHaveLength(5);
+  });
+
+  it("keeps the template when there is nothing to personalise", () => {
+    expect(buildDraft({ language: "ar", name: null, sentences: [] })).toBe(OUTREACH_TEMPLATES.ar.text);
+    expect(buildDraft({ language: "ar", name: "سرايا عابدين", sentences: [] })).toMatch(/^مرحباً فريق سرايا عابدين! 👋/);
   });
 });
 

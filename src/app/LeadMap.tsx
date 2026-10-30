@@ -153,8 +153,14 @@ export function LeadMap({ area, data, selectedId, onBoundsChange, onSelect }: Le
   }, [data]);
 
   useEffect(() => {
-    if (!loadedRef.current) return;
-    mapRef.current?.setFilter("places-selected", ["==", ["get", "id"], selectedId ?? ""]);
+    const map = mapRef.current;
+    if (!loadedRef.current || !map) return;
+    map.setFilter("places-selected", ["==", ["get", "id"], selectedId ?? ""]);
+    // Bring a place picked from the list into view.
+    const feature = latest.current.data.features.find((f) => f.id === selectedId);
+    if (feature && !map.getBounds().contains(feature.geometry.coordinates)) {
+      map.easeTo({ center: feature.geometry.coordinates });
+    }
   }, [selectedId]);
 
   return <div ref={containerRef} className="h-full w-full" role="region" aria-label="Map of places" />;

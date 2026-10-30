@@ -186,6 +186,21 @@ function Details({ place }: { place: PlaceDetails }) {
     <div className="mt-2 space-y-4">
       <p className="text-neutral-600">{humanizeCategory(place.basic_category)}</p>
 
+      <details className="rounded-md border border-neutral-200 p-2">
+        <summary className="cursor-pointer">
+          Lead score <strong>{place.lead_score}</strong>/100
+          {place.chain_size >= 3 && <span className="ml-2 text-xs text-neutral-600">chain ({place.chain_size} locations)</span>}
+        </summary>
+        <ul className="mt-1 space-y-0.5 text-xs">
+          {place.score_parts.map((part) => (
+            <li key={part.label} className="flex justify-between gap-3">
+              <span>{part.label}</span>
+              <span className="tabular-nums">+{part.points}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
+
       <div>
         <span
           className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium text-white"

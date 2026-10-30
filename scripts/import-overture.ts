@@ -15,12 +15,14 @@ import {
   MAX_IMPORT_ROWS,
   overturePlacesQuery,
   summarize,
+  applyChainsAndScores,
   toPlaceRow,
   upsertPlaces,
   type OverturePlace,
   type PlaceRow,
 } from "../src/lib/server/placesImport";
 import { createSupabaseAdmin } from "../src/lib/server/supabase";
+import { parseTargetGroups } from "../src/lib/places/leadScore";
 
 const USAGE = `Usage:
   npm run import:places -- --area <${Object.keys(AREAS).join("|")}> [--release ${DEFAULT_OVERTURE_RELEASE}] [--dry-run]
@@ -80,10 +82,17 @@ async function main() {
   const raw = await readOverture(release, area.bbox);
   if (raw.length > MAX_IMPORT_ROWS) fail(`${raw.length} records exceeds the ${MAX_IMPORT_ROWS} limit; use a smaller bbox`);
 
-  const rows = raw
-    .map((record) => toPlaceRow(record, { release, area: area.name }))
-    .filter((row): row is PlaceRow => row !== null);
-  console.log(`Read ${raw.length} records, ${rows.length} usable.`);
+  let targets;
+  try {
+    targets = parseTargetGroups(process.env.LEAD_TARGET_CATEGORIES);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
+  }
+  const rows = applyChainsAndScores(
+    raw.map((record) => toPlaceRow(record, { release, area: area.name })).filter((row): row is PlaceRow => row !== null),
+    targets,
+  );
+  console.log(`Read ${raw.length} records, ${rows.length} usable. Target categories: ${targets.join(", ")}.`);
   console.log(JSON.stringify(summarize(rows), null, 2));
 
   if (values["dry-run"]) {

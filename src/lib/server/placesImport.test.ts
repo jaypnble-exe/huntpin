@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { validateBBox } from "../places/areas";
 import {
+  applyChainsAndScores,
   overturePlacesQuery,
   summarize,
   toPlaceRow,
@@ -49,6 +50,8 @@ describe("toPlaceRow", () => {
       lon: 39.15,
       source_datasets: ["meta"],
       source_licenses: ["CDLA-Permissive-2.0"],
+      chain_size: 1,
+      lead_score: 0,
     });
   });
 
@@ -99,6 +102,8 @@ describe("summarize", () => {
       total: 2,
       byPresence: { social_only: 1, website_listed: 1 },
       withInstagram: 1,
+      chains: 0,
+      scoreAtLeast70: 0,
       licenses: ["CDLA-Permissive-2.0"],
     });
   });
@@ -125,5 +130,20 @@ describe("upsertPlaces", () => {
     expect(fetchFn).toHaveBeenCalledTimes(3);
     expect(progress).toEqual([500, 1000]);
     expect(JSON.parse(String(fetchFn.mock.calls[0][1]?.body))).toHaveLength(500);
+  });
+});
+
+describe("applyChainsAndScores", () => {
+  it("scores rows and flags chains across the import", () => {
+    const rows = [
+      toPlaceRow(RAW, META),
+      toPlaceRow({ ...RAW, id: "c1", name: "Pizza Hut" }, META),
+      toPlaceRow({ ...RAW, id: "c2", name: "PIZZA HUT" }, META),
+      toPlaceRow({ ...RAW, id: "c3", name: "بيتزا هت | Pizza Hut" }, META),
+    ] as PlaceRow[];
+    const scored = applyChainsAndScores(rows);
+    // social_only 30 + phone 15 + instagram 10 + target category 15 + confidence 0.8 → 10
+    expect(scored[0]).toMatchObject({ chain_size: 1, lead_score: 80 });
+    expect(scored.slice(1).map((r) => [r.chain_size, r.lead_score])).toEqual([[3, 5], [3, 5], [3, 5]]);
   });
 });

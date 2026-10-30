@@ -13,6 +13,8 @@ function row(i: number) {
     web_presence: "social_only",
     has_instagram: i % 2 === 0,
     lead: i === 0 ? { lead_status: "contacted" } : null,
+    lead_score: 80,
+    chain_size: i === 1 ? 4 : 1,
     lat: 21.58,
     lon: 39.15,
   };
@@ -55,7 +57,8 @@ describe("queryPlaces", () => {
     expect(params.get("has_instagram")).toBe("eq.true");
     expect(params.get("basic_category")).toBe("in.(hotel,lodging,resort)");
     expect(params.get("name")).toBe("ilike.%50\\%\\_off\\*%");
-    expect(params.get("order")).toBe("confidence.desc.nullslast,id.asc");
+    expect(params.get("order")).toBe("lead_score.desc,confidence.desc.nullslast,id.asc");
+    expect(params.get("chain_size")).toBe("lt.3");
     expect(params.get("select")).toContain("lead:leads(lead_status)");
     expect(params.get("lead")).toBe("is.null");
 
@@ -64,7 +67,7 @@ describe("queryPlaces", () => {
       type: "Feature",
       id: "p0",
       geometry: { type: "Point", coordinates: [39.15, 21.58] },
-      properties: { id: "p0", name: "Place 0", presence: "social_only", instagram: true, category: "cafe", leadStatus: "contacted" },
+      properties: { id: "p0", name: "Place 0", presence: "social_only", instagram: true, category: "cafe", leadStatus: "contacted", score: 80, chain: false },
     });
   });
 
@@ -124,5 +127,14 @@ describe("saved-lead filter", () => {
     const params = new URL(String(fetchFn.mock.calls[0][0])).searchParams;
     expect(params.get("select")).toContain("lead:leads!inner(lead_status)");
     expect(params.get("lead")).toBeNull();
+  });
+});
+
+describe("chains", () => {
+  it("includes chains only when asked, and marks them", async () => {
+    const { fetchFn, supabase } = setup(2);
+    const result = await queryPlaces(supabase, BBOX, { ...DEFAULT_FILTERS, hideChains: false });
+    expect(new URL(String(fetchFn.mock.calls[0][0])).searchParams.get("chain_size")).toBeNull();
+    expect(result.features[1].properties.chain).toBe(true);
   });
 });

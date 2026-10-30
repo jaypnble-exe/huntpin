@@ -55,6 +55,7 @@ export function PlacesExplorer() {
   const [load, setLoad] = useState<LoadState>({ kind: "idle" });
   const [selectedId, setSelectedId] = useState<string | null>(focus.placeId);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [bestOpen, setBestOpen] = useState(false);
   // Bumped after saving a lead so its pin gets the saved halo.
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -96,6 +97,11 @@ export function PlacesExplorer() {
       controller.abort();
     };
   }, [bbox, filters, reloadKey]);
+
+  const bestInView = useMemo(
+    () => [...data.features].sort((a, b) => b.properties.score - a.properties.score).slice(0, 15),
+    [data],
+  );
 
   const counts = useMemo(() => {
     const result: Partial<Record<WebPresence, number>> = {};
@@ -148,7 +154,54 @@ export function PlacesExplorer() {
           >
             Filters
           </button>
+          <button
+            type="button"
+            onClick={() => setBestOpen((open) => !open)}
+            aria-expanded={bestOpen}
+            aria-controls="best-leads"
+            className="rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-medium whitespace-nowrap text-neutral-900 shadow"
+          >
+            Best leads
+          </button>
         </div>
+
+        {bestOpen && (
+          <div
+            id="best-leads"
+            className="max-h-[50dvh] overflow-y-auto rounded-lg border border-black/15 bg-white p-3 text-sm text-neutral-900 shadow"
+          >
+            <h2 className="font-semibold">Best leads in view</h2>
+            {bestInView.length === 0 ? (
+              <p className="mt-1 text-xs text-neutral-600">No places in view.</p>
+            ) : (
+              <ol className="mt-2 space-y-1">
+                {bestInView.map((feature) => (
+                  <li key={feature.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(feature.id)}
+                      className={`flex w-full items-center gap-2 rounded px-1.5 py-1 text-left hover:bg-neutral-100 ${feature.id === selectedId ? "bg-blue-50" : ""}`}
+                    >
+                      <span className="w-8 shrink-0 rounded bg-neutral-900 text-center text-xs font-semibold text-white">
+                        {feature.properties.score}
+                      </span>
+                      <span
+                        aria-hidden
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ background: PRESENCE_STYLES[feature.properties.presence].color }}
+                      />
+                      <bdi className="truncate">{feature.properties.name ?? "Unnamed"}</bdi>
+                      {feature.properties.leadStatus && <span className="ml-auto text-xs text-blue-900">saved</span>}
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <p className="mt-2 text-xs text-neutral-600">
+              Score 0–100 from web presence, phone, Instagram, category and confidence. Click a place for the breakdown.
+            </p>
+          </div>
+        )}
 
         {filtersOpen && (
           <div
@@ -183,6 +236,15 @@ export function PlacesExplorer() {
                 onChange={(event) => setFilters((f) => ({ ...f, instagramOnly: event.target.checked }))}
               />
               Only places with Instagram
+            </label>
+
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={!filters.hideChains}
+                onChange={(event) => setFilters((f) => ({ ...f, hideChains: !event.target.checked }))}
+              />
+              Show chains (names at 3+ locations)
             </label>
 
             <fieldset>
@@ -264,7 +326,7 @@ export function PlacesExplorer() {
             (filters.presence.length === 0
               ? "Select at least one web presence type."
               : data.truncated
-                ? `Showing the ${data.features.length.toLocaleString()} most reliable matches. Zoom in or narrow filters to see all.`
+                ? `Showing the ${data.features.length.toLocaleString()} best-scoring matches. Zoom in or narrow filters to see all.`
                 : `${data.features.length.toLocaleString()} places in view`)}
         </p>
       </div>

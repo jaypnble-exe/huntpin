@@ -9,7 +9,13 @@ import { WEB_PRESENCE } from "@/lib/places/webPresence";
 import type { Lead } from "@/lib/server/leadsStore";
 import { PRESENCE_STYLES } from "../placeStyles";
 import { LeadEditor } from "./LeadEditor";
-import { WEBSITE_STATUS_LABELS } from "./WebsiteCheck";
+import { leadOpportunities, WEBSITE_STATUS_LABELS } from "./WebsiteCheck";
+import { reviewBonus } from "@/lib/places/leadScore";
+
+/** Place score plus a bonus for website-review opportunities, capped at 100. */
+function leadScore(lead: Lead): number {
+  return Math.min(100, (lead.place?.lead_score ?? 0) + reviewBonus(leadOpportunities(lead).length));
+}
 
 type LoadState = { kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string };
 
@@ -27,6 +33,7 @@ export function LeadsDashboard() {
   const [status, setStatus] = useState("");
   const [presence, setPresence] = useState("");
   const [category, setCategory] = useState("");
+  const [sort, setSort] = useState<"score" | "updated">("score");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [load, setLoad] = useState<LoadState>({ kind: "loading" });
 
@@ -55,6 +62,11 @@ export function LeadsDashboard() {
     return () => controller.abort();
   }, [query]);
 
+  const sorted = useMemo(
+    () => (sort === "score" ? [...leads].sort((a, b) => leadScore(b) - leadScore(a)) : leads),
+    [leads, sort],
+  );
+
   const selected = leads.find((lead) => lead.id === selectedId) ?? null;
   const select = (id: string | null) => router.replace(id ? `/leads?lead=${id}` : "/leads", { scroll: false });
 
@@ -74,7 +86,7 @@ export function LeadsDashboard() {
         </a>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid gap-3 sm:grid-cols-4">
         <label className="block text-sm font-medium">
           Lead status
           <select className={selectClass} value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -112,6 +124,13 @@ export function LeadsDashboard() {
             ))}
           </select>
         </label>
+        <label className="block text-sm font-medium">
+          Sort
+          <select className={selectClass} value={sort} onChange={(e) => setSort(e.target.value === "updated" ? "updated" : "score")}>
+            <option value="score">Best leads first</option>
+            <option value="updated">Recently updated</option>
+          </select>
+        </label>
       </div>
 
       <div aria-live="polite" className="mt-4">
@@ -143,6 +162,7 @@ export function LeadsDashboard() {
             <caption className="sr-only">Saved leads</caption>
             <thead className="border-b border-black/15 dark:border-white/20">
               <tr>
+                <th scope="col" className="py-2 pr-4">Score</th>
                 <th scope="col" className="py-2 pr-4">Business</th>
                 <th scope="col" className="py-2 pr-4">Category</th>
                 <th scope="col" className="py-2 pr-4">Web presence</th>
@@ -153,13 +173,14 @@ export function LeadsDashboard() {
               </tr>
             </thead>
             <tbody>
-              {leads.map((lead) => {
+              {sorted.map((lead) => {
                 const presenceStyle = lead.place ? PRESENCE_STYLES[lead.place.web_presence] : null;
                 return (
                   <tr
                     key={lead.id}
                     className={`border-b border-black/10 dark:border-white/10 ${lead.id === selectedId ? "bg-blue-500/10" : ""}`}
                   >
+                    <td className="py-2 pr-4 tabular-nums font-semibold">{leadScore(lead)}</td>
                     <td className="py-2 pr-4">
                       <bdi>{lead.label ?? lead.place?.name ?? "Unnamed"}</bdi>
                       {lead.place?.has_instagram && <span className="ml-1 text-xs text-pink-700">IG</span>}

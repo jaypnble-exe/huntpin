@@ -41,13 +41,24 @@ export interface LeadPatch {
   lead_status?: LeadStatus;
   first_contacted_at?: string | null;
   last_contacted_at?: string | null;
+  confirmed_opportunities?: string[];
 }
 
 export type ParsedLeadPatch =
   | { ok: true; patch: LeadPatch; markContacted: boolean }
   | { ok: false; error: string };
 
-const ALLOWED_KEYS = new Set(["label", "notes", "status", "firstContactedOn", "lastContactedOn", "markContacted"]);
+const ALLOWED_KEYS = new Set([
+  "label",
+  "notes",
+  "status",
+  "firstContactedOn",
+  "lastContactedOn",
+  "markContacted",
+  "confirmedOpportunities",
+]);
+const OPPORTUNITY_KEY = /^[a-z_]{1,40}$/;
+export const MAX_CONFIRMED_OPPORTUNITIES = 20;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function optionalText(value: unknown, name: string, max: number): string | null | Error {
@@ -96,6 +107,18 @@ export function parseLeadPatch(body: unknown): ParsedLeadPatch {
   if ("status" in record) {
     if (!isLeadStatus(record.status)) return { ok: false, error: "status is not a valid lead status" };
     patch.lead_status = record.status;
+  }
+
+  if ("confirmedOpportunities" in record) {
+    const keys = record.confirmedOpportunities;
+    if (
+      !Array.isArray(keys) ||
+      keys.length > MAX_CONFIRMED_OPPORTUNITIES ||
+      !keys.every((k) => typeof k === "string" && OPPORTUNITY_KEY.test(k))
+    ) {
+      return { ok: false, error: "confirmedOpportunities must be a short list of opportunity keys" };
+    }
+    patch.confirmed_opportunities = [...new Set(keys as string[])];
   }
 
   if ("markContacted" in record && typeof record.markContacted !== "boolean") {

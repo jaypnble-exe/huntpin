@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BBox } from "../places/areas";
 import { CATEGORY_GROUPS } from "../places/categories";
+import { CHAIN_MIN_LOCATIONS, parseTargetGroups, scoreParts, type ScorePart } from "../places/leadScore";
 import type { LeadStatus } from "../leads/leads";
 import type { PlaceFilters } from "../places/filters";
 import type { WebPresence } from "../places/webPresence";
@@ -22,6 +23,9 @@ export interface PlaceFeature {
     category: string | null;
     /** Status of the saved lead for this place, or null if not saved. */
     leadStatus: LeadStatus | null;
+    /** 0-100 lead score from the import (higher is a better prospect). */
+    score: number;
+    chain: boolean;
   };
 }
 
@@ -48,6 +52,10 @@ export interface PlaceDetails {
   source_release: string;
   source_datasets: string[];
   source_licenses: string[];
+  lead_score: number;
+  chain_size: number;
+  /** Why the place has its score (computed on the server with the configured target categories). */
+  score_parts: ScorePart[];
 }
 
 interface MapRow {
@@ -58,6 +66,8 @@ interface MapRow {
   has_instagram: boolean;
   lat: number;
   lon: number;
+  lead_score: number;
+  chain_size: number;
   // One-to-one (leads.overture_place_id is unique), so PostgREST returns an
   // object or null; accept an array too in case the relationship is read as many.
   lead: { lead_status: LeadStatus } | { lead_status: LeadStatus }[] | null;
@@ -77,7 +87,7 @@ function buildMapQuery(supabase: SupabaseClient, [west, south, east, north]: BBo
   let query = supabase
     .from("places")
     .select(
-      `id,name,basic_category,web_presence,has_instagram,lat,lon,lead:leads${filters.saved === "only" ? "!inner" : ""}(lead_status)`,
+      `id,name,basic_category,web_presence,has_instagram,lat,lon,lead_score,chain_size,lead:leads${filters.saved === "only" ? "!inner" : ""}(lead_status)`,
     )
     .gte("lon", west)
     .lte("lon", east)
@@ -89,8 +99,12 @@ function buildMapQuery(supabase: SupabaseClient, [west, south, east, north]: BBo
   if (filters.category) query = query.in("basic_category", [...CATEGORY_GROUPS[filters.category].categories]);
   if (filters.nameQuery) query = query.ilike("name", `%${escapeLike(filters.nameQuery)}%`);
   if (filters.saved === "hide") query = query.is("lead", null);
-  // Most reliable places first, so truncation drops the least reliable.
-  return query.order("confidence", { ascending: false, nullsFirst: false }).order("id");
+  if (filters.hideChains) query = query.lt("chain_size", CHAIN_MIN_LOCATIONS);
+  // Best leads first, so truncation drops the weakest prospects.
+  return query
+    .order("lead_score", { ascending: false })
+    .order("confidence", { ascending: false, nullsFirst: false })
+    .order("id");
 }
 
 /** Places in a bounding box, as GeoJSON for the map. Throws on database errors. */
@@ -127,6 +141,8 @@ export async function queryPlaces(
         instagram: row.has_instagram,
         category: row.basic_category,
         leadStatus: leadStatusOf(row.lead),
+        score: row.lead_score,
+        chain: row.chain_size >= CHAIN_MIN_LOCATIONS,
       },
     })),
   };
@@ -143,10 +159,23 @@ export async function getPlaceDetails(supabase: SupabaseClient, id: string): Pro
   const { data, error } = await supabase
     .from("places")
     .select(
-      "id,name,basic_category,websites,socials,phones,web_presence,has_instagram,confidence,operating_status,lat,lon,source_release,source_datasets,source_licenses",
+      "id,name,basic_category,websites,socials,phones,web_presence,has_instagram,confidence,operating_status,lat,lon,source_release,source_datasets,source_licenses,lead_score,chain_size",
     )
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error("place_details_failed");
-  return data as PlaceDetails | null;
+  if (!data) return null;
+  const place = data as Omit<PlaceDetails, "score_parts">;
+  const score_parts = scoreParts(
+    {
+      webPresence: place.web_presence,
+      hasInstagram: place.has_instagram,
+      phoneCount: place.phones.length,
+      category: place.basic_category,
+      confidence: place.confidence,
+      chainSize: place.chain_size,
+    },
+    parseTargetGroups(process.env.LEAD_TARGET_CATEGORIES),
+  );
+  return { ...place, score_parts };
 }

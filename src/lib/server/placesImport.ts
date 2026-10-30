@@ -1,6 +1,8 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BBox } from "../places/areas";
+import { computeChainSizes, scorePlace } from "../places/leadScore";
+import type { CategoryGroup } from "../places/categories";
 import { classifyWebPresence, hasInstagram, type WebPresence } from "../places/webPresence";
 
 // Overture Maps release to import. Check https://docs.overturemaps.org/release/
@@ -70,6 +72,9 @@ export interface PlaceRow {
   lon: number;
   source_datasets: string[];
   source_licenses: string[];
+  /** Places in the same import sharing this name; set by applyChainsAndScores. */
+  chain_size: number;
+  lead_score: number;
 }
 
 function text(value: unknown): string | null {
@@ -116,7 +121,29 @@ export function toPlaceRow(
     lon,
     source_datasets: textList(raw.source_datasets),
     source_licenses: textList(raw.source_licenses),
+    chain_size: 1,
+    lead_score: 0,
   };
+}
+
+/** Sets chain sizes across the whole import, then scores every row. */
+export function applyChainsAndScores(rows: PlaceRow[], targets?: CategoryGroup[]): PlaceRow[] {
+  const chainSizes = computeChainSizes(rows.map((row) => row.name));
+  return rows.map((row, i) => {
+    const chain_size = chainSizes[i];
+    const lead_score = scorePlace(
+      {
+        webPresence: row.web_presence,
+        hasInstagram: row.has_instagram,
+        phoneCount: row.phones.length,
+        category: row.basic_category,
+        confidence: row.confidence,
+        chainSize: chain_size,
+      },
+      targets,
+    );
+    return { ...row, chain_size, lead_score };
+  });
 }
 
 export function summarize(rows: PlaceRow[]) {
@@ -126,6 +153,8 @@ export function summarize(rows: PlaceRow[]) {
     total: rows.length,
     byPresence,
     withInstagram: rows.filter((r) => r.has_instagram).length,
+    chains: rows.filter((r) => r.chain_size >= 3).length,
+    scoreAtLeast70: rows.filter((r) => r.lead_score >= 70).length,
     licenses: [...new Set(rows.flatMap((r) => r.source_licenses))].sort(),
   };
 }

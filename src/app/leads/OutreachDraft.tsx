@@ -1,20 +1,59 @@
 "use client";
 
-import { useState } from "react";
-import { OUTREACH_TEMPLATES, whatsappHref, type OutreachLanguage } from "@/lib/leads/outreach";
+import { useEffect, useMemo, useState } from "react";
+import {
+  buildDraft,
+  defaultLanguage,
+  namePart,
+  OUTREACH_TEMPLATES,
+  whatsappHref,
+  type OutreachLanguage,
+} from "@/lib/leads/outreach";
 
-/** Editable, copyable draft. Nothing is ever sent automatically. */
-export function OutreachDraft({ phones }: { phones: string[] }) {
-  const [language, setLanguage] = useState<OutreachLanguage>("en");
-  const [text, setText] = useState<string>(OUTREACH_TEMPLATES.en.text);
+/**
+ * Personalised, editable, copyable draft. Nothing is ever sent automatically.
+ * Until the operator edits it, the draft follows the name and confirmed
+ * observations; after that, "Rebuild draft" regenerates it on request.
+ */
+export function OutreachDraft({
+  phones,
+  name,
+  confirmedSentences,
+}: {
+  phones: string[];
+  name: string | null;
+  confirmedSentences: { en: string; ar: string }[];
+}) {
+  const [language, setLanguage] = useState<OutreachLanguage>(() => defaultLanguage(name));
+  const generated = useMemo(
+    () =>
+      buildDraft({
+        language,
+        name: namePart(name, language),
+        sentences: confirmedSentences.map((s) => s[language]),
+      }),
+    [language, name, confirmedSentences],
+  );
+  const [text, setText] = useState(generated);
+  const [edited, setEdited] = useState(false);
   const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
 
+  // Follow the generated draft until the operator edits it.
+  useEffect(() => {
+    if (!edited) setText(generated);
+  }, [generated, edited]);
+
   function switchLanguage(next: OutreachLanguage) {
-    const edited = text !== OUTREACH_TEMPLATES[language].text;
     if (edited && !window.confirm("Switch language? Your edits to this draft will be replaced.")) return;
+    setEdited(false);
     setLanguage(next);
-    setText(OUTREACH_TEMPLATES[next].text);
     setCopied("idle");
+  }
+
+  function rebuild() {
+    if (!window.confirm("Rebuild the draft? Your edits will be replaced.")) return;
+    setEdited(false);
+    setText(generated);
   }
 
   async function copy() {
@@ -51,8 +90,11 @@ export function OutreachDraft({ phones }: { phones: string[] }) {
         </div>
       </div>
       <p className="mt-1 text-xs text-neutral-600">
-        Edit before sending. Only mention website issues you have actually checked. Contact one business at a time,
-        and stop if they ask.
+        Personalised with the business name
+        {confirmedSentences.length > 0
+          ? ` and ${confirmedSentences.length} observation${confirmedSentences.length === 1 ? "" : "s"} you confirmed`
+          : ""}
+        . Edit before sending, contact one business at a time, and stop if they ask.
       </p>
       <label className="sr-only" htmlFor="outreach-text">
         Message
@@ -65,6 +107,7 @@ export function OutreachDraft({ phones }: { phones: string[] }) {
         value={text}
         onChange={(e) => {
           setText(e.target.value);
+          setEdited(true);
           setCopied("idle");
         }}
       />
@@ -72,6 +115,11 @@ export function OutreachDraft({ phones }: { phones: string[] }) {
         <button type="button" onClick={copy} className="rounded-md border border-neutral-300 px-3 py-1.5">
           Copy message
         </button>
+        {edited && text !== generated && (
+          <button type="button" onClick={rebuild} className="rounded-md border border-neutral-300 px-3 py-1.5">
+            Rebuild draft
+          </button>
+        )}
         {whatsappLinks.map(({ phone, href }) => (
           <a
             key={phone}

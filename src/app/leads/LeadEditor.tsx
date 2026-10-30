@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   canDraftOutreach,
   LEAD_STATUS_LABELS,
@@ -15,7 +15,7 @@ import { googleMapsCoordinatesUrl, safeHref, telHref } from "@/lib/places/links"
 import type { Lead } from "@/lib/server/leadsStore";
 import { PRESENCE_STYLES } from "../placeStyles";
 import { OutreachDraft } from "./OutreachDraft";
-import { WebsiteCheck } from "./WebsiteCheck";
+import { leadOpportunities, WebsiteCheck } from "./WebsiteCheck";
 
 const inputClass = "mt-1 w-full rounded-md border border-neutral-300 px-2 py-1.5";
 
@@ -103,6 +103,13 @@ export function LeadEditor({
   }
 
   const place = lead.place;
+  const confirmedSentences = useMemo(
+    () =>
+      leadOpportunities(lead)
+        .filter((o) => o.sentence && lead.confirmed_opportunities.includes(o.key))
+        .map((o) => o.sentence!),
+    [lead],
+  );
   const presence = place ? PRESENCE_STYLES[place.web_presence] : null;
 
   return (
@@ -260,7 +267,11 @@ export function LeadEditor({
 
       <div className="mt-4 border-t border-neutral-200 pt-4">
         {canDraftOutreach(status) ? (
-          <OutreachDraft phones={place?.phones ?? []} />
+          <OutreachDraft
+            phones={place?.phones ?? []}
+            name={label.trim() || place?.name || null}
+            confirmedSentences={confirmedSentences}
+          />
         ) : (
           <p className="text-neutral-600">
             No outreach drafts for leads marked “{LEAD_STATUS_LABELS[status]}”.

@@ -32,6 +32,15 @@ const ERROR_DESCRIPTIONS: Record<string, string> = {
   blocked_address: "The site points to a private or reserved network address, so it was not contacted.",
 };
 
+export function leadOpportunities(lead: Lead) {
+  return deriveOpportunities({
+    websiteStatus: lead.website_status,
+    errorCategory: lead.website_error_category,
+    signals: lead.website_signals,
+    category: lead.place?.basic_category ?? null,
+  });
+}
+
 function defaultUrl(lead: Lead): string {
   if (lead.website_url) return lead.website_url;
   return lead.place?.websites.find((url) => !isSocialUrl(url)) ?? "";
@@ -133,7 +142,7 @@ export function WebsiteCheck({ lead, onChecked }: { lead: Lead; onChecked: (lead
         </div>
       )}
 
-      {lead.website_checked_at && <Opportunities lead={lead} />}
+      {lead.website_checked_at && <Opportunities lead={lead} onChecked={onChecked} />}
     </section>
   );
 }
@@ -152,21 +161,30 @@ function SignalSummary({ signals }: { signals: WebsiteSignals }) {
   return <p className="text-neutral-600">Homepage: {facts.join(" · ")}</p>;
 }
 
-function Opportunities({ lead }: { lead: Lead }) {
-  const [copied, setCopied] = useState<string | null>(null);
-  const opportunities = deriveOpportunities({
-    websiteStatus: lead.website_status,
-    errorCategory: lead.website_error_category,
-    signals: lead.website_signals,
-    category: lead.place?.basic_category ?? null,
-  });
+function Opportunities({ lead, onChecked }: { lead: Lead; onChecked: (lead: Lead) => void }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const opportunities = leadOpportunities(lead);
 
-  async function copy(key: string, text: string) {
+  async function toggle(key: string, confirmed: boolean) {
+    const next = confirmed
+      ? [...new Set([...lead.confirmed_opportunities, key])]
+      : lead.confirmed_opportunities.filter((k) => k !== key);
+    setSaving(true);
+    setError(null);
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(key);
-    } catch {
-      setCopied(null);
+      const response = await fetch(`/api/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmedOpportunities: next }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.message ?? "Could not save.");
+      onChecked(body.lead as Lead);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -182,20 +200,26 @@ function Opportunities({ lead }: { lead: Lead }) {
             <p className="font-medium">{o.title}</p>
             <p className="text-xs text-neutral-600">{o.detail}</p>
             {o.sentence && (
-              <div className="mt-1 flex flex-wrap gap-2 text-xs">
-                <button type="button" onClick={() => copy(`${o.key}-en`, o.sentence!.en)} className="underline">
-                  {copied === `${o.key}-en` ? "Copied" : "Copy sentence (EN)"}
-                </button>
-                <button type="button" onClick={() => copy(`${o.key}-ar`, o.sentence!.ar)} className="underline">
-                  {copied === `${o.key}-ar` ? "Copied" : "Copy sentence (AR)"}
-                </button>
-              </div>
+              <label className="mt-1 flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  disabled={saving}
+                  checked={lead.confirmed_opportunities.includes(o.key)}
+                  onChange={(e) => toggle(o.key, e.target.checked)}
+                />
+                I checked this — add it to the draft
+              </label>
             )}
           </li>
         ))}
       </ul>
+      {error && (
+        <p role="alert" className="mt-1 text-xs text-red-700">
+          {error}
+        </p>
+      )}
       <p className="mt-1 text-xs text-neutral-600">
-        Based on the first part of the homepage only. Open the site yourself before mentioning anything to the business.
+        Based on the first part of the homepage only. Open the site yourself, then tick what you confirmed.
       </p>
     </div>
   );

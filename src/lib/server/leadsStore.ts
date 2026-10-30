@@ -21,6 +21,8 @@ export interface LeadPlace {
   area: string;
   source_datasets: string[];
   source_licenses: string[];
+  lead_score: number;
+  chain_size: number;
 }
 
 export interface Lead {
@@ -40,6 +42,7 @@ export interface Lead {
   website_error_category: string | null;
   website_signals: WebsiteSignals | null;
   website_checked_at: string | null;
+  confirmed_opportunities: string[];
   place: LeadPlace | null;
 }
 
@@ -51,9 +54,9 @@ export interface LeadListFilters {
 
 const LEAD_COLUMNS =
   "id,label,operator_notes,lead_status,first_contacted_at,last_contacted_at,created_at,updated_at,overture_place_id," +
-  "website_url,website_status,website_http_status,website_final_url,website_error_category,website_signals,website_checked_at";
+  "website_url,website_status,website_http_status,website_final_url,website_error_category,website_signals,website_checked_at,confirmed_opportunities";
 const PLACE_COLUMNS =
-  "name,basic_category,web_presence,has_instagram,phones,websites,socials,lat,lon,area,source_datasets,source_licenses";
+  "name,basic_category,web_presence,has_instagram,phones,websites,socials,lat,lon,area,source_datasets,source_licenses,lead_score,chain_size";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

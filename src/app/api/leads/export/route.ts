@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
     [
       "label",
       "status",
+      "lead_score",
       "category",
       "web_presence",
       "has_instagram",
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
     leads.map((lead) => [
       lead.label ?? lead.place?.name,
       LEAD_STATUS_LABELS[lead.lead_status],
+      lead.place?.lead_score,
       lead.place?.basic_category,
       lead.place?.web_presence,
       lead.place?.has_instagram,
