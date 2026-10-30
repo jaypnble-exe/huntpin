@@ -7,8 +7,11 @@ import {
   namePart,
   OUTREACH_TEMPLATES,
   whatsappHref,
+  type DraftKind,
   type OutreachLanguage,
 } from "@/lib/leads/outreach";
+
+const KIND_LABELS: Record<DraftKind, string> = { first: "First message", follow_up: "Follow-up" };
 
 /**
  * Personalised, editable, copyable draft. Nothing is ever sent automatically.
@@ -19,20 +22,24 @@ export function OutreachDraft({
   phones,
   name,
   confirmedSentences,
+  defaultKind = "first",
 }: {
   phones: string[];
   name: string | null;
   confirmedSentences: { en: string; ar: string }[];
+  defaultKind?: DraftKind;
 }) {
   const [language, setLanguage] = useState<OutreachLanguage>(() => defaultLanguage(name));
+  const [kind, setKind] = useState<DraftKind>(defaultKind);
   const generated = useMemo(
     () =>
       buildDraft({
         language,
         name: namePart(name, language),
         sentences: confirmedSentences.map((s) => s[language]),
+        kind,
       }),
-    [language, name, confirmedSentences],
+    [language, name, confirmedSentences, kind],
   );
   const [text, setText] = useState(generated);
   const [edited, setEdited] = useState(false);
@@ -47,6 +54,13 @@ export function OutreachDraft({
     if (edited && !window.confirm("Switch language? Your edits to this draft will be replaced.")) return;
     setEdited(false);
     setLanguage(next);
+    setCopied("idle");
+  }
+
+  function switchKind(next: DraftKind) {
+    if (edited && !window.confirm("Switch draft type? Your edits to this draft will be replaced.")) return;
+    setEdited(false);
+    setKind(next);
     setCopied("idle");
   }
 
@@ -88,6 +102,19 @@ export function OutreachDraft({
             </button>
           ))}
         </div>
+      </div>
+      <div role="group" aria-label="Draft type" className="mt-2 flex w-fit overflow-hidden rounded-md border border-neutral-300 text-xs">
+        {(["first", "follow_up"] as DraftKind[]).map((key) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={kind === key}
+            onClick={() => kind !== key && switchKind(key)}
+            className={`px-2.5 py-1 ${kind === key ? "bg-neutral-900 text-white" : ""}`}
+          >
+            {KIND_LABELS[key]}
+          </button>
+        ))}
       </div>
       <p className="mt-1 text-xs text-neutral-600">
         Personalised with the business name

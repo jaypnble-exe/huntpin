@@ -10,6 +10,7 @@ import type { Lead } from "@/lib/server/leadsStore";
 import { PRESENCE_STYLES } from "../placeStyles";
 import { LeadEditor } from "./LeadEditor";
 import { leadOpportunities, WEBSITE_STATUS_LABELS } from "./WebsiteCheck";
+import { isDue, localDate, wantsFollowUp } from "@/lib/leads/followUps";
 import { reviewBonus } from "@/lib/places/leadScore";
 
 /** Place score plus a bonus for website-review opportunities, capped at 100. */
@@ -34,6 +35,8 @@ export function LeadsDashboard() {
   const [presence, setPresence] = useState("");
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState<"score" | "updated">("score");
+  const [dueOnly, setDueOnly] = useState(false);
+  const today = localDate(new Date());
   const [leads, setLeads] = useState<Lead[]>([]);
   const [load, setLoad] = useState<LoadState>({ kind: "loading" });
 
@@ -42,8 +45,9 @@ export function LeadsDashboard() {
     if (status) q.set("status", status);
     if (presence) q.set("presence", presence);
     if (category) q.set("category", category);
+    if (dueOnly) q.set("due", "1");
     return q.toString();
-  }, [status, presence, category]);
+  }, [status, presence, category, dueOnly]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -67,6 +71,7 @@ export function LeadsDashboard() {
     [leads, sort],
   );
 
+  const dueCount = leads.filter((lead) => isDue(lead.follow_up_on, lead.lead_status, today)).length;
   const selected = leads.find((lead) => lead.id === selectedId) ?? null;
   const select = (id: string | null) => router.replace(id ? `/leads?lead=${id}` : "/leads", { scroll: false });
 
@@ -77,13 +82,25 @@ export function LeadsDashboard() {
           <h1 className="text-2xl font-bold">Leads</h1>
           <p className="text-sm opacity-80">Saved from the map. Status, notes and contact dates are yours to manage.</p>
         </div>
-        <a
-          href={`/api/leads/export?${query}`}
-          className="rounded-md border border-current px-3 py-1.5 text-sm font-medium"
-          download
-        >
-          Export CSV
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            aria-pressed={dueOnly}
+            onClick={() => setDueOnly((d) => !d)}
+            className={`rounded-md border px-3 py-1.5 text-sm font-medium ${dueOnly ? "border-red-700 bg-red-700 text-white" : "border-current"}`}
+          >
+            {dueOnly
+              ? "Showing follow-ups due · show all"
+              : `Follow-ups due${dueCount > 0 ? ` (${dueCount})` : ""}`}
+          </button>
+          <a
+            href={`/api/leads/export?${query}`}
+            className="rounded-md border border-current px-3 py-1.5 text-sm font-medium"
+            download
+          >
+            Export CSV
+          </a>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-4">
@@ -142,7 +159,7 @@ export function LeadsDashboard() {
         )}
         {load.kind === "ready" && leads.length === 0 && (
           <p className="rounded-lg border border-black/10 p-6 text-center text-sm dark:border-white/15">
-            {query ? "No leads match these filters." : "No leads yet. "}
+            {dueOnly ? "No follow-ups due today." : query ? "No leads match these filters." : "No leads yet. "}
             {!query && (
               <>
                 Open the{" "}
@@ -169,6 +186,7 @@ export function LeadsDashboard() {
                 <th scope="col" className="py-2 pr-4">Status</th>
                 <th scope="col" className="py-2 pr-4">Website check</th>
                 <th scope="col" className="py-2 pr-4">Last contacted</th>
+                <th scope="col" className="py-2 pr-4">Follow up</th>
                 <th scope="col" className="py-2">Actions</th>
               </tr>
             </thead>
@@ -202,6 +220,15 @@ export function LeadsDashboard() {
                       )}
                     </td>
                     <td className="py-2 pr-4">{formatDate(lead.last_contacted_at)}</td>
+                    <td className="py-2 pr-4">
+                      {lead.follow_up_on && wantsFollowUp(lead.lead_status) ? (
+                        <span className={isDue(lead.follow_up_on, lead.lead_status, today) ? "font-semibold text-red-700" : ""}>
+                          {lead.follow_up_on === today ? "Today" : lead.follow_up_on < today ? `Overdue (${lead.follow_up_on})` : lead.follow_up_on}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="py-2">
                       <button type="button" onClick={() => select(lead.id)} className="underline">
                         Open<span className="sr-only"> {lead.label ?? "lead"}</span>

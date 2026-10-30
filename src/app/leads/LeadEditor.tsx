@@ -14,6 +14,7 @@ import { humanizeCategory } from "@/lib/places/categories";
 import { googleMapsCoordinatesUrl, safeHref, telHref } from "@/lib/places/links";
 import type { Lead } from "@/lib/server/leadsStore";
 import { PRESENCE_STYLES } from "../placeStyles";
+import { FOLLOW_UP_AFTER_DAYS, MAX_FOLLOW_UPS, wantsFollowUp } from "@/lib/leads/followUps";
 import { OutreachDraft } from "./OutreachDraft";
 import { leadOpportunities, WebsiteCheck } from "./WebsiteCheck";
 
@@ -39,6 +40,7 @@ export function LeadEditor({
   const [notes, setNotes] = useState(lead.operator_notes ?? "");
   const [firstContacted, setFirstContacted] = useState(toDateInput(lead.first_contacted_at));
   const [lastContacted, setLastContacted] = useState(toDateInput(lead.last_contacted_at));
+  const [followUpOn, setFollowUpOn] = useState(lead.follow_up_on ?? "");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
@@ -52,6 +54,7 @@ export function LeadEditor({
     setStatus(updated.lead_status);
     setFirstContacted(toDateInput(updated.first_contacted_at));
     setLastContacted(toDateInput(updated.last_contacted_at));
+    setFollowUpOn(updated.follow_up_on ?? "");
     onSaved(updated);
   }
 
@@ -84,6 +87,7 @@ export function LeadEditor({
         notes,
         firstContactedOn: firstContacted || null,
         lastContactedOn: lastContacted || null,
+        followUpOn: followUpOn || null,
       },
       "Saved.",
     );
@@ -230,6 +234,20 @@ export function LeadEditor({
             <input type="date" className={inputClass} value={lastContacted} onChange={(e) => setLastContacted(e.target.value)} />
           </label>
         </div>
+        {wantsFollowUp(status) && (
+          <div>
+            <label className="block font-medium">
+              Next follow-up
+              <input type="date" className={inputClass} value={followUpOn} onChange={(e) => setFollowUpOn(e.target.value)} />
+            </label>
+            <p className="mt-1 text-xs text-neutral-600">
+              Follow-ups sent: {lead.follow_up_count} of {MAX_FOLLOW_UPS}.
+              {lead.follow_up_count >= MAX_FOLLOW_UPS
+                ? " That is the maximum; no more reminders unless you set a date yourself."
+                : ` Set automatically ${FOLLOW_UP_AFTER_DAYS} days after each contact.`}
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <button type="submit" disabled={busy} className="rounded-md bg-neutral-900 px-3 py-1.5 font-medium text-white disabled:opacity-50">
@@ -239,10 +257,12 @@ export function LeadEditor({
             <button
               type="button"
               disabled={busy}
-              onClick={() => patch({ markContacted: true }, "Marked as contacted today.")}
+              onClick={() =>
+                patch({ markContacted: true }, lead.first_contacted_at ? "Marked as followed up today." : "Marked as contacted today.")
+              }
               className="rounded-md border border-neutral-300 px-3 py-1.5 disabled:opacity-50"
             >
-              Mark contacted today
+              {lead.first_contacted_at ? "Mark followed up today" : "Mark contacted today"}
             </button>
           )}
           <button
@@ -271,6 +291,7 @@ export function LeadEditor({
             phones={place?.phones ?? []}
             name={label.trim() || place?.name || null}
             confirmedSentences={confirmedSentences}
+            defaultKind={lead.first_contacted_at ? "follow_up" : "first"}
           />
         ) : (
           <p className="text-neutral-600">

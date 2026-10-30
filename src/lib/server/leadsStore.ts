@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CATEGORY_GROUPS, type CategoryGroup } from "../places/categories";
 import type { WebPresence } from "../places/webPresence";
+import { afterContact, localDate, wantsFollowUp } from "../leads/followUps";
 import type { LeadPatch, LeadStatus } from "../leads/leads";
 import type { WebsiteSignals } from "../websiteSignals";
 import type { WebsiteCheckResult, WebsiteCheckStatus } from "./websiteCheck";
@@ -43,6 +44,8 @@ export interface Lead {
   website_signals: WebsiteSignals | null;
   website_checked_at: string | null;
   confirmed_opportunities: string[];
+  follow_up_on: string | null;
+  follow_up_count: number;
   place: LeadPlace | null;
 }
 
@@ -50,11 +53,13 @@ export interface LeadListFilters {
   statuses: LeadStatus[];
   presence: WebPresence[];
   category: CategoryGroup | null;
+  /** Only leads whose follow-up date is today or earlier. */
+  due?: boolean;
 }
 
 const LEAD_COLUMNS =
   "id,label,operator_notes,lead_status,first_contacted_at,last_contacted_at,created_at,updated_at,overture_place_id," +
-  "website_url,website_status,website_http_status,website_final_url,website_error_category,website_signals,website_checked_at,confirmed_opportunities";
+  "website_url,website_status,website_http_status,website_final_url,website_error_category,website_signals,website_checked_at,confirmed_opportunities,follow_up_on,follow_up_count";
 const PLACE_COLUMNS =
   "name,basic_category,web_presence,has_instagram,phones,websites,socials,lat,lon,area,source_datasets,source_licenses,lead_score,chain_size";
 
@@ -75,6 +80,11 @@ export async function listLeads(supabase: SupabaseClient, filters: LeadListFilte
   if (filters.statuses.length > 0) query = query.in("lead_status", filters.statuses);
   if (filters.presence.length > 0) query = query.in("place.web_presence", filters.presence);
   if (filters.category) query = query.in("place.basic_category", [...CATEGORY_GROUPS[filters.category].categories]);
+  if (filters.due) {
+    query = query
+      .lte("follow_up_on", localDate(new Date(), process.env.APP_TIME_ZONE || undefined))
+      .in("lead_status", ["contacted", "follow_up"]);
+  }
 
   const { data, error } = await query.order("updated_at", { ascending: false }).limit(MAX_LEADS_LISTED);
   if (error) throw new Error("leads_list_failed");
@@ -151,13 +161,24 @@ export async function updateLead(
   if (markContacted) {
     const current = await getLead(supabase, id);
     if (!current) throw new NotFoundError("lead_not_found");
+    const next = afterContact(
+      {
+        status: current.lead_status,
+        firstContactedAt: current.first_contacted_at,
+        followUpCount: current.follow_up_count,
+      },
+      { now, timeZone: process.env.APP_TIME_ZONE || undefined, explicitStatus: update.lead_status },
+    );
     update.last_contacted_at = now.toISOString();
     if (!current.first_contacted_at && update.first_contacted_at === undefined) {
       update.first_contacted_at = now.toISOString();
     }
-    if (update.lead_status === undefined && (current.lead_status === "new" || current.lead_status === "reviewed")) {
-      update.lead_status = "contacted";
-    }
+    update.lead_status = next.status;
+    update.follow_up_count = next.followUpCount;
+    if (update.follow_up_on === undefined) update.follow_up_on = next.followUpOn;
+  } else if (update.lead_status !== undefined && !wantsFollowUp(update.lead_status)) {
+    // Replied, declined, opted out (or not yet contacted): no reminders.
+    update.follow_up_on = null;
   }
 
   const { data, error } = await supabase.from("leads").update(update).eq("id", id).select("id");

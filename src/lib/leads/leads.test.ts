@@ -4,6 +4,7 @@ import { canDraftOutreach, parseLeadPatch } from "./leads";
 import {
   buildDraft,
   DEFAULT_OUTREACH_MESSAGE,
+  FOLLOW_UP_TEMPLATES,
   defaultLanguage,
   namePart,
   OUTREACH_TEMPLATES,
@@ -45,6 +46,11 @@ describe("parseLeadPatch", () => {
     });
   });
 
+  it("accepts a manual follow-up date or null", () => {
+    expect(parseLeadPatch({ followUpOn: "2026-11-05" })).toEqual({ ok: true, markContacted: false, patch: { follow_up_on: "2026-11-05" } });
+    expect(parseLeadPatch({ followUpOn: null })).toEqual({ ok: true, markContacted: false, patch: { follow_up_on: null } });
+  });
+
   it("accepts markContacted on its own", () => {
     expect(parseLeadPatch({ markContacted: true })).toEqual({ ok: true, markContacted: true, patch: {} });
   });
@@ -60,6 +66,8 @@ describe("parseLeadPatch", () => {
     [{ firstContactedOn: "2026-02-30" }, /real date/],
     [{ lastContactedOn: "yesterday" }, /YYYY-MM-DD/],
     [{ markContacted: "yes" }, /boolean/],
+    [{ followUpOn: "next week" }, /followUpOn/],
+    [{ followUpOn: "2026-02-30" }, /followUpOn/],
     [{ confirmedOpportunities: "no_https" }, /confirmedOpportunities/],
     [{ confirmedOpportunities: ["DROP TABLE"] }, /confirmedOpportunities/],
     [{ confirmedOpportunities: Array.from({ length: 21 }, (_, i) => "k" + "x".repeat(i)) }, /confirmedOpportunities/],
@@ -126,6 +134,13 @@ describe("personalised drafts", () => {
       "I noticed your website doesn’t seem to have an Arabic version. I’d be happy to help with that.",
     );
     expect(paragraphs).toHaveLength(5);
+  });
+
+  it("builds a short personalised follow-up", () => {
+    const draft = buildDraft({ language: "en", name: "Basic Cafe", sentences: [], kind: "follow_up" });
+    expect(draft.split("\n\n")[0]).toBe("Hi Basic Cafe team! 👋 Just following up on my earlier message.");
+    expect(draft).toMatch(/no problem at all, just let me know/);
+    expect(buildDraft({ language: "ar", name: null, sentences: [], kind: "follow_up" })).toBe(FOLLOW_UP_TEMPLATES.ar);
   });
 
   it("keeps the template when there is nothing to personalise", () => {

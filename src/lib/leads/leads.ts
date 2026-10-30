@@ -42,6 +42,8 @@ export interface LeadPatch {
   first_contacted_at?: string | null;
   last_contacted_at?: string | null;
   confirmed_opportunities?: string[];
+  follow_up_on?: string | null;
+  follow_up_count?: number;
 }
 
 export type ParsedLeadPatch =
@@ -56,6 +58,7 @@ const ALLOWED_KEYS = new Set([
   "lastContactedOn",
   "markContacted",
   "confirmedOpportunities",
+  "followUpOn",
 ]);
 const OPPORTUNITY_KEY = /^[a-z_]{1,40}$/;
 export const MAX_CONFIRMED_OPPORTUNITIES = 20;
@@ -107,6 +110,14 @@ export function parseLeadPatch(body: unknown): ParsedLeadPatch {
   if ("status" in record) {
     if (!isLeadStatus(record.status)) return { ok: false, error: "status is not a valid lead status" };
     patch.lead_status = record.status;
+  }
+
+  if ("followUpOn" in record) {
+    const value = record.followUpOn;
+    if (value !== null && (typeof value !== "string" || !DATE_PATTERN.test(value) || optionalDate(value, "followUpOn") instanceof Error)) {
+      return { ok: false, error: "followUpOn must be YYYY-MM-DD or null" };
+    }
+    patch.follow_up_on = value as string | null;
   }
 
   if ("confirmedOpportunities" in record) {

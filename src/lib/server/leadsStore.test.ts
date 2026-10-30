@@ -13,6 +13,8 @@ const LEAD = {
   created_at: "2026-10-30T00:00:00Z",
   updated_at: "2026-10-30T00:00:00Z",
   overture_place_id: "place-1",
+  follow_up_on: null,
+  follow_up_count: 0,
   place: null,
 };
 
@@ -83,6 +85,9 @@ describe("updateLead", () => {
       last_contacted_at: now.toISOString(),
       first_contacted_at: now.toISOString(),
       lead_status: "contacted",
+      follow_up_count: 0,
+      // 4 days after 30 Oct in Riyadh time.
+      follow_up_on: "2026-11-03",
     });
   });
 
@@ -94,7 +99,15 @@ describe("updateLead", () => {
     expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({
       lead_status: "follow_up",
       last_contacted_at: now.toISOString(),
+      follow_up_count: 1,
+      follow_up_on: "2026-11-06",
     });
+  });
+
+  it("clears the reminder when a lead replies or opts out", async () => {
+    const { supabase, calls } = setup(({ method }) => (method === "PATCH" ? { body: [{ id: LEAD_ID }] } : { body: LEAD }));
+    await updateLead(supabase, LEAD_ID, { lead_status: "do_not_contact" }, false);
+    expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({ lead_status: "do_not_contact", follow_up_on: null });
   });
 
   it("reports a missing lead", async () => {
@@ -108,8 +121,11 @@ describe("listLeads", () => {
     const { supabase, calls } = setup(() => ({ body: [] }));
     await listLeads(supabase, { statuses: ["new"], presence: [], category: null });
     await listLeads(supabase, { statuses: [], presence: ["social_only"], category: "food" });
+    await listLeads(supabase, { statuses: [], presence: [], category: null, due: true });
 
-    const [plain, joined] = calls.map((c) => c.url.searchParams);
+    const [plain, joined, due] = calls.map((c) => c.url.searchParams);
+    expect(due.get("follow_up_on")).toMatch(/^lte\.\d{4}-\d{2}-\d{2}$/);
+    expect(due.get("lead_status")).toBe("in.(contacted,follow_up)");
     expect(plain.get("select")).toContain("place:places(");
     expect(plain.get("lead_status")).toBe("in.(new)");
     expect(joined.get("select")).toContain("place:places!inner(");

@@ -6,6 +6,7 @@ export interface ParsedLeadListQuery {
   statuses: LeadStatus[];
   presence: WebPresence[];
   category: CategoryGroup | null;
+  due: boolean;
 }
 
 function list(params: URLSearchParams, key: string): string[] {
@@ -30,6 +31,7 @@ export function parseLeadListQuery(
       statuses: statuses as LeadStatus[],
       presence: presence as WebPresence[],
       category: category ? (category as CategoryGroup) : null,
+      due: params.get("due") === "1",
     },
   };
 }

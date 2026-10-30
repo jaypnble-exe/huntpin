@@ -30,6 +30,22 @@ Would you be open to a quick chat? 😊`,
 
 export type OutreachLanguage = keyof typeof OUTREACH_TEMPLATES;
 
+/** Short, polite follow-up, with an easy way to say no. */
+export const FOLLOW_UP_TEMPLATES: Record<OutreachLanguage, string> = {
+  en: `Hi! 👋 Just following up on my earlier message.
+
+I’d be glad to help with your website, a custom system, a mobile app, or automating part of your work.
+
+Would a quick chat this week suit you? If now isn’t a good time, no problem at all, just let me know. 😊`,
+  ar: `مرحباً! 👋 أتابع معكم بخصوص رسالتي السابقة.
+
+يسعدني مساعدتكم في موقعكم الإلكتروني، أو نظام مخصص، أو تطبيق جوال، أو أتمتة جزء من أعمالكم.
+
+هل يناسبكم أن نتحدث قليلاً هذا الأسبوع؟ وإذا لم يكن الوقت مناسباً فلا بأس أبداً، فقط أخبروني. 😊`,
+};
+
+export type DraftKind = "first" | "follow_up";
+
 export const DEFAULT_OUTREACH_MESSAGE = OUTREACH_TEMPLATES.en.text;
 
 const ARABIC_RUN = /[؀-ۿ][؀-ۿ\s]*[؀-ۿ]|[؀-ۿ]/g;
@@ -56,9 +72,15 @@ export function defaultLanguage(label: string | null): OutreachLanguage {
   return /[؀-ۿ]/.test(label) && !/[A-Za-z]/.test(label) ? "ar" : "en";
 }
 
-const PERSONAL_GREETING: Record<OutreachLanguage, (name: string) => string> = {
-  en: (name) => `Hi ${name} team! 👋 I came across your business online and wanted to reach out.`,
-  ar: (name) => `مرحباً فريق ${name}! 👋 صادفت نشاطكم التجاري على الإنترنت وأحببت التواصل معكم.`,
+const PERSONAL_GREETING: Record<DraftKind, Record<OutreachLanguage, (name: string) => string>> = {
+  first: {
+    en: (name) => `Hi ${name} team! 👋 I came across your business online and wanted to reach out.`,
+    ar: (name) => `مرحباً فريق ${name}! 👋 صادفت نشاطكم التجاري على الإنترنت وأحببت التواصل معكم.`,
+  },
+  follow_up: {
+    en: (name) => `Hi ${name} team! 👋 Just following up on my earlier message.`,
+    ar: (name) => `مرحباً فريق ${name}! 👋 أتابع معكم بخصوص رسالتي السابقة.`,
+  },
 };
 
 const OBSERVATION_CLOSE: Record<OutreachLanguage, string> = {
@@ -74,14 +96,20 @@ export function buildDraft({
   language,
   name,
   sentences,
+  kind = "first",
 }: {
   language: OutreachLanguage;
   name: string | null;
   sentences: string[];
+  kind?: DraftKind;
 }): string {
-  const paragraphs = OUTREACH_TEMPLATES[language].text.split("\n\n");
-  if (name) paragraphs[0] = PERSONAL_GREETING[language](name);
-  if (sentences.length > 0) paragraphs.splice(2, 0, `${sentences.join(" ")} ${OBSERVATION_CLOSE[language]}`);
+  const template = kind === "first" ? OUTREACH_TEMPLATES[language].text : FOLLOW_UP_TEMPLATES[language];
+  const paragraphs = template.split("\n\n");
+  if (name) paragraphs[0] = PERSONAL_GREETING[kind][language](name);
+  // First message: after the intro. Follow-up: right after the greeting.
+  if (sentences.length > 0) {
+    paragraphs.splice(kind === "first" ? 2 : 1, 0, `${sentences.join(" ")} ${OBSERVATION_CLOSE[language]}`);
+  }
   return paragraphs.join("\n\n");
 }
 
