@@ -1,13 +1,26 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { LEAD_STATUS_LABELS } from "@/lib/leads/leads";
+import { InstagramBadge, LeadStatusBadge, PresenceBadge, ScorePill } from "@/components/leads/LeadBadges";
+import {
+  Alert,
+  Badge,
+  Button,
+  ButtonLink,
+  Drawer,
+  ExternalButtonLink,
+  IconExternal,
+  IconPhone,
+  IconStar,
+  InlineMessage,
+  Spinner,
+} from "@/components/ui";
 import { humanizeCategory } from "@/lib/places/categories";
-import { googleMapsCoordinatesUrl, safeHref, telHref } from "@/lib/places/links";
+import { googleMapsCoordinatesUrl, googleMapsSearchUrl, safeHref, telHref } from "@/lib/places/links";
 import { isInstagramUrl } from "@/lib/places/webPresence";
 import type { Lead } from "@/lib/server/leadsStore";
 import type { PlaceDetails } from "@/lib/server/placesStore";
+import { GoogleRatingCard } from "./GoogleRatingCard";
 import { PRESENCE_STYLES } from "./placeStyles";
 
 type State =
@@ -19,20 +32,20 @@ function LinkList({ title, urls }: { title: string; urls: string[] }) {
   if (urls.length === 0) return null;
   return (
     <div>
-      <h3 className="font-semibold">{title}</h3>
-      <ul className="mt-1 space-y-1">
+      <h3 className="text-xs font-medium text-muted">{title}</h3>
+      <ul className="mt-1 space-y-1 text-sm">
         {urls.map((url) => {
           const href = safeHref(url);
           return (
-            <li key={url} className="break-all">
+            <li key={url} className="flex items-center gap-2 break-all">
               {href ? (
-                <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="text-blue-700 underline">
+                <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="text-info hover:underline">
                   {url}
                 </a>
               ) : (
                 url
               )}
-              {isInstagramUrl(url) && <span className="ml-1 text-pink-700">(Instagram)</span>}
+              {isInstagramUrl(url) && <InstagramBadge />}
             </li>
           );
         })}
@@ -68,39 +81,34 @@ export function PlaceDetailsPanel({
     return () => controller.abort();
   }, [id]);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const place = state.kind === "loaded" ? state.place : null;
 
   return (
-    <aside
-      aria-label="Place details"
-      className="absolute inset-x-0 bottom-0 z-20 max-h-[60%] overflow-y-auto rounded-t-xl bg-white p-4 text-sm text-neutral-900 shadow-2xl sm:inset-x-auto sm:top-3 sm:right-14 sm:bottom-auto sm:max-h-[calc(100%-1.5rem)] sm:w-96 sm:rounded-xl"
+    <Drawer
+      label="Place details"
+      position="absolute"
+      title={place ? (place.name ?? "Unnamed place") : "Place details"}
+      subtitle={
+        place && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <ScorePill score={place.lead_score} />
+            <PresenceBadge presence={place.web_presence} />
+            {place.has_instagram && <InstagramBadge />}
+            <span className="text-xs">{humanizeCategory(place.basic_category)}</span>
+          </div>
+        )
+      }
+      onClose={onClose}
     >
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-lg font-semibold" dir="auto">
-          {state.kind === "loaded" ? (state.place.name ?? "Unnamed place") : "Place details"}
-        </h2>
-        <button type="button" onClick={onClose} aria-label="Close details" className="rounded px-2 text-xl leading-none">
-          ×
-        </button>
-      </div>
-
-      {state.kind === "loading" && <p className="mt-2">Loading…</p>}
-      {state.kind === "error" && (
-        <p role="alert" className="mt-2 text-red-700">
-          {state.message}
-        </p>
+      {state.kind === "loading" && <Spinner />}
+      {state.kind === "error" && <Alert tone="danger">{state.message}</Alert>}
+      {place && (
+        <div className="space-y-5">
+          <LeadSave placeId={place.id} onSaved={onLeadSaved} />
+          <Details place={place} />
+        </div>
       )}
-      {state.kind === "loaded" && (
-        <>
-          <LeadSave placeId={state.place.id} onSaved={onLeadSaved} />
-          <Details place={state.place} />
-        </>
-      )}
-    </aside>
+    </Drawer>
   );
 }
 
@@ -147,128 +155,115 @@ function LeadSave({ placeId, onSaved }: { placeId: string; onSaved?: () => void 
     }
   }
 
+  if (state.kind === "loading") return <Spinner label="Checking leads…" />;
+  if (state.kind === "error") return <InlineMessage tone="danger">{state.message}</InlineMessage>;
+  if (state.kind === "saved") {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info/25 bg-info-soft p-3">
+        <span className="flex items-center gap-2 text-sm">
+          Saved as lead <LeadStatusBadge status={state.lead.lead_status} />
+        </span>
+        <ButtonLink href={`/leads?lead=${state.lead.id}`} size="sm" variant="primary">
+          Open lead
+        </ButtonLink>
+      </div>
+    );
+  }
   return (
-    <div className="mt-3 rounded-lg bg-neutral-100 p-3">
-      {state.kind === "loading" && <p className="text-neutral-600">Checking leads…</p>}
-      {(state.kind === "none" || state.kind === "saving") && (
-        <button
-          type="button"
-          onClick={save}
-          disabled={state.kind === "saving"}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 font-medium text-white disabled:opacity-50"
-        >
-          {state.kind === "saving" ? "Saving…" : "Save as lead"}
-        </button>
-      )}
-      {state.kind === "saved" && (
-        <p>
-          Saved as lead · <strong>{LEAD_STATUS_LABELS[state.lead.lead_status]}</strong>{" "}
-          <Link href={`/leads?lead=${state.lead.id}`} className="text-blue-700 underline">
-            Open in Leads
-          </Link>
-        </p>
-      )}
-      {state.kind === "error" && (
-        <p role="alert" className="text-red-700">
-          {state.message}
-        </p>
-      )}
-    </div>
+    <Button variant="primary" className="w-full" onClick={save} disabled={state.kind === "saving"}>
+      <IconStar />
+      {state.kind === "saving" ? "Saving…" : "Save as lead"}
+    </Button>
   );
 }
 
 function Details({ place }: { place: PlaceDetails }) {
   const style = PRESENCE_STYLES[place.web_presence];
-  const phones = place.phones.map((phone) => ({ phone, href: telHref(phone) }));
   const fromFoursquare = place.source_datasets.some((d) => d.toLowerCase() === "foursquare");
+  const maxPoints = Math.max(...place.score_parts.map((p) => p.points), 1);
 
   return (
-    <div className="mt-2 space-y-4">
-      <p className="text-neutral-600">{humanizeCategory(place.basic_category)}</p>
+    <>
+      <p className="text-xs text-muted">
+        {style.description}. Based on open data, which can be incomplete or out of date. Check before contacting the business.
+      </p>
 
-      <details className="rounded-md border border-neutral-200 p-2">
-        <summary className="cursor-pointer">
-          Lead score <strong>{place.lead_score}</strong>/100
-          {place.chain_size >= 3 && <span className="ml-2 text-xs text-neutral-600">chain ({place.chain_size} locations)</span>}
+      {place.phones.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {place.phones.map((phone) => {
+            const href = telHref(phone);
+            return href ? (
+              <a key={phone} href={href} dir="ltr" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-strong px-2.5 text-xs font-medium hover:bg-surface-muted">
+                <IconPhone />
+                {phone}
+              </a>
+            ) : (
+              <span key={phone} dir="ltr" className="text-sm">
+                {phone}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      <GoogleRatingCard name={place.name} area={place.area} lat={place.lat} lon={place.lon} />
+
+      <LinkList title="Website" urls={place.websites} />
+      <LinkList title="Social links" urls={place.socials} />
+
+      <details className="group rounded-lg border border-border p-3">
+        <summary className="flex cursor-pointer items-center justify-between text-sm font-medium">
+          <span>Why this score</span>
+          {place.chain_size >= 3 && <Badge>Chain · {place.chain_size} locations</Badge>}
         </summary>
-        <ul className="mt-1 space-y-0.5 text-xs">
+        <ul className="mt-3 space-y-2 text-xs">
           {place.score_parts.map((part) => (
-            <li key={part.label} className="flex justify-between gap-3">
-              <span>{part.label}</span>
-              <span className="tabular-nums">+{part.points}</span>
+            <li key={part.label}>
+              <div className="flex justify-between gap-3">
+                <span>{part.label}</span>
+                <span className="text-muted tabular-nums">+{part.points}</span>
+              </div>
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-muted">
+                <div className="h-full rounded-full bg-primary/70" style={{ width: `${(part.points / maxPoints) * 100}%` }} />
+              </div>
             </li>
           ))}
         </ul>
       </details>
 
-      <div>
-        <span
-          className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium text-white"
-          style={{ background: style.color }}
-        >
-          {style.label}
-        </span>
-        {place.has_instagram && (
-          <span className="ml-2 inline-block rounded-full bg-pink-100 px-2.5 py-1 text-xs font-medium text-pink-800">
-            Instagram
-          </span>
-        )}
-        <p className="mt-2 text-xs text-neutral-600">
-          {style.description}. Based on open data, which can be incomplete or out of date. Check before contacting
-          the business.
-        </p>
-      </div>
-
-      <LinkList title="Website" urls={place.websites} />
-      <LinkList title="Social links" urls={place.socials} />
-
-      {phones.length > 0 && (
-        <div>
-          <h3 className="font-semibold">Phone</h3>
-          <ul className="mt-1 space-y-1">
-            {phones.map(({ phone, href }) => (
-              <li key={phone} dir="ltr">
-                {href ? (
-                  <a href={href} className="text-blue-700 underline">
-                    {phone}
-                  </a>
-                ) : (
-                  phone
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-        <dt className="text-neutral-600">Existence confidence</dt>
-        <dd>{place.confidence === null ? "Unknown" : `${Math.round(place.confidence * 100)}%`}</dd>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
+        <dt className="text-muted">Still exists</dt>
+        <dd>{place.confidence === null ? "Not scored" : `${Math.round(place.confidence * 100)}%`}</dd>
         {place.operating_status && (
           <>
-            <dt className="text-neutral-600">Operating status</dt>
+            <dt className="text-muted">Operating status</dt>
             <dd>{place.operating_status.replace(/_/g, " ")}</dd>
           </>
         )}
-        <dt className="text-neutral-600">Sources</dt>
+        <dt className="text-muted">Sources</dt>
         <dd>{place.source_datasets.join(", ") || "Unknown"}</dd>
-        <dt className="text-neutral-600">Licences</dt>
+        <dt className="text-muted">Licences</dt>
         <dd>{place.source_licenses.join(", ") || "Unknown"}</dd>
-        <dt className="text-neutral-600">Data release</dt>
-        <dd>{place.source === "foursquare" ? "Foursquare OS Places (imported " + place.source_release.replace("fsq-", "") + ")" : "Overture " + place.source_release}</dd>
+        <dt className="text-muted">Data</dt>
+        <dd>
+          {place.source === "foursquare"
+            ? `Foursquare OS Places (imported ${place.source_release.replace("fsq-", "")})`
+            : `Overture ${place.source_release}`}
+        </dd>
       </dl>
-      {fromFoursquare && (
-        <p className="text-xs text-neutral-600">Copyright 2024 Foursquare Labs, Inc. All rights reserved.</p>
-      )}
+      {fromFoursquare && <p className="text-xs text-muted">Copyright 2024 Foursquare Labs, Inc. All rights reserved.</p>}
 
-      <a
-        href={googleMapsCoordinatesUrl(place.lat, place.lon)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-block rounded-md border border-neutral-300 px-3 py-1.5 font-medium"
-      >
-        Open location in Google Maps<span className="sr-only"> (opens in a new tab)</span>
-      </a>
-    </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <ExternalButtonLink href={googleMapsSearchUrl(place.name, place.area, place.lat, place.lon)} variant="primary">
+          <IconExternal />
+          Find on Google Maps
+        </ExternalButtonLink>
+        <ExternalButtonLink href={googleMapsCoordinatesUrl(place.lat, place.lon)}>
+          <IconExternal />
+          Open pin location
+        </ExternalButtonLink>
+      </div>
+      <p className="text-xs text-muted">“Find on Google Maps” searches by name, which usually opens their listing with rating, reviews and photos.</p>
+    </>
   );
 }

@@ -42,3 +42,5 @@ npm run build
 - `supabase/migrations/`: database schema, run manually in the SQL Editor
 - `scripts/import-overture.ts`: imports open places data (`npm run import:places`)
 - `src/lib/places/`: web-presence labels and import areas, shared by server and browser
+- `src/components/ui/`: shared UI kit (Button, Badge, Card, Section, PageHeader, Stat, Field/Input/Select/Textarea, SegmentedControl, ToggleChip, Drawer, Alert, EmptyState, Spinner, icons). Colours come from design tokens in `src/app/globals.css` (light and dark).
+- `src/components/leads/`: lead-specific badges (score, status, web presence, website check)

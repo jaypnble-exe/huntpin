@@ -1,16 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { WebsiteStatusBadge } from "@/components/leads/LeadBadges";
+import { Badge, Button, IconGlobe, InlineMessage, Input, Section, cn } from "@/components/ui";
 import { isSocialUrl } from "@/lib/places/webPresence";
 import type { Lead } from "@/lib/server/leadsStore";
 import { deriveOpportunities, type WebsiteSignals } from "@/lib/websiteSignals";
-
-export const WEBSITE_STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  reachable: { label: "Reachable", className: "bg-green-100 text-green-800" },
-  unreachable: { label: "Unreachable", className: "bg-red-100 text-red-800" },
-  needs_manual_review: { label: "Needs manual review", className: "bg-amber-100 text-amber-900" },
-  not_listed: { label: "Website URL not listed", className: "bg-neutral-200 text-neutral-800" },
-};
 
 const ERROR_DESCRIPTIONS: Record<string, string> = {
   dns_not_found: "The domain does not resolve (it may have expired).",
@@ -71,32 +66,24 @@ export function WebsiteCheck({ lead, onChecked }: { lead: Lead; onChecked: (lead
     }
   }
 
-  const status = lead.website_status ? WEBSITE_STATUS_LABELS[lead.website_status] : null;
   const noWebsiteListed = !defaultUrl(lead);
 
   return (
-    <section aria-labelledby="website-check-heading">
-      <h3 id="website-check-heading" className="font-semibold">
-        Website check
-      </h3>
-      <p className="mt-1 text-xs text-neutral-600">
-        Reads the response and at most the first 256 KB of the homepage (no scripts or images). Only yes/no signals
-        are stored, never page content. Look at the site yourself before mentioning anything to the business.
-      </p>
+    <Section
+      title="Website"
+      description="Reads at most the first 256 KB of the homepage. Only yes/no signals are stored, never page content."
+    >
       {noWebsiteListed && !lead.website_checked_at && (
-        <p className="mt-2">
-          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${WEBSITE_STATUS_LABELS.not_listed.className}`}>
-            {WEBSITE_STATUS_LABELS.not_listed.label}
-          </span>
-          <span className="ml-2 text-xs text-neutral-600">If you find their site, enter it below.</span>
+        <p className="mb-2 flex items-center gap-2 text-xs text-muted">
+          <WebsiteStatusBadge status="not_listed" /> If you find their site, enter it below.
         </p>
       )}
 
-      <form onSubmit={check} className="mt-2 flex gap-2">
+      <form onSubmit={check} className="flex gap-2">
         <label className="sr-only" htmlFor="website-url">
           Website URL
         </label>
-        <input
+        <Input
           id="website-url"
           type="text"
           inputMode="url"
@@ -105,60 +92,67 @@ export function WebsiteCheck({ lead, onChecked }: { lead: Lead; onChecked: (lead
           maxLength={2048}
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          className="min-w-0 flex-1 rounded-md border border-neutral-300 px-2 py-1.5"
+          className="min-w-0 flex-1"
         />
-        <button
-          type="submit"
-          disabled={busy || !url.trim()}
-          className="rounded-md border border-neutral-300 px-3 py-1.5 disabled:opacity-50"
-        >
-          {busy ? "Checking…" : "Check website"}
-        </button>
+        <Button type="submit" disabled={busy || !url.trim()}>
+          <IconGlobe />
+          {busy ? "Checking…" : "Check"}
+        </Button>
       </form>
       {error && (
-        <p role="alert" className="mt-2 text-red-700">
-          {error}
+        <p className="mt-2">
+          <InlineMessage tone="danger">{error}</InlineMessage>
         </p>
       )}
 
-      {status && lead.website_checked_at && (
-        <div className="mt-3 space-y-1 text-xs" aria-live="polite">
-          <p>
-            <span className={`rounded-full px-2.5 py-1 font-medium ${status.className}`}>{status.label}</span>
-            {lead.website_http_status !== null && <span className="ml-2">HTTP {lead.website_http_status}</span>}
-            <span className="ml-2 text-neutral-600">checked {new Date(lead.website_checked_at).toLocaleString()}</span>
+      {lead.website_status && lead.website_checked_at && (
+        <div className="mt-3 space-y-2 rounded-lg bg-surface-muted p-3 text-xs" aria-live="polite">
+          <p className="flex flex-wrap items-center gap-2">
+            <WebsiteStatusBadge status={lead.website_status} />
+            {lead.website_http_status !== null && <span>HTTP {lead.website_http_status}</span>}
+            <span className="text-muted">checked {new Date(lead.website_checked_at).toLocaleString()}</span>
           </p>
           {lead.website_error_category && (
-            <p className="text-neutral-700">
-              {ERROR_DESCRIPTIONS[lead.website_error_category] ?? lead.website_error_category}
-            </p>
+            <p>{ERROR_DESCRIPTIONS[lead.website_error_category] ?? lead.website_error_category}</p>
           )}
           {lead.website_final_url && lead.website_final_url !== lead.website_url && (
-            <p className="break-all text-neutral-600" dir="ltr">
+            <p className="break-all text-muted" dir="ltr">
               Ended at: {lead.website_final_url}
             </p>
           )}
-          {lead.website_signals && <SignalSummary signals={lead.website_signals} />}
+          {lead.website_signals && <SignalChips signals={lead.website_signals} />}
         </div>
       )}
 
       {lead.website_checked_at && <Opportunities lead={lead} onChecked={onChecked} />}
-    </section>
+    </Section>
   );
 }
 
-function SignalSummary({ signals }: { signals: WebsiteSignals }) {
-  const facts = [
-    signals.https ? "HTTPS" : "no HTTPS",
-    signals.responseMs !== null ? `first response ${(signals.responseMs / 1000).toFixed(1)} s` : null,
-    signals.htmlRead ? (signals.mobileViewport ? "mobile viewport tag" : "no mobile viewport tag") : "page not readable",
-    signals.hasArabic === null ? null : signals.hasArabic ? "Arabic content" : "no Arabic content",
-    signals.sitePlatform ? `built with ${signals.sitePlatform}` : null,
-    signals.deliveryApps.length ? `delivery apps: ${signals.deliveryApps.join(", ")}` : null,
-    signals.bookingTools.length ? `booking: ${signals.bookingTools.join(", ")}` : null,
-    signals.hasForm === null ? null : signals.hasForm ? "has a form" : "no form",
-  ].filter(Boolean);
-  return <p className="text-neutral-600">Homepage: {facts.join(" · ")}</p>;
+function SignalChips({ signals }: { signals: WebsiteSignals }) {
+  const chips: { text: string; good: boolean | null }[] = [
+    { text: signals.https ? "HTTPS" : "No HTTPS", good: signals.https },
+    ...(signals.responseMs !== null
+      ? [{ text: `First response ${(signals.responseMs / 1000).toFixed(1)} s`, good: signals.responseMs <= 3000 }]
+      : []),
+    signals.htmlRead
+      ? { text: signals.mobileViewport ? "Mobile viewport" : "No mobile viewport", good: Boolean(signals.mobileViewport) }
+      : { text: "Page not readable", good: null },
+    ...(signals.hasArabic === null ? [] : [{ text: signals.hasArabic ? "Arabic content" : "No Arabic content", good: signals.hasArabic }]),
+    ...(signals.hasForm === null ? [] : [{ text: signals.hasForm ? "Has a form" : "No form", good: signals.hasForm }]),
+    ...(signals.sitePlatform ? [{ text: `Built with ${signals.sitePlatform}`, good: null }] : []),
+    ...signals.deliveryApps.map((app) => ({ text: app, good: null })),
+    ...signals.bookingTools.map((tool) => ({ text: `Booking: ${tool}`, good: true })),
+  ];
+  return (
+    <ul aria-label="Homepage signals" className="flex flex-wrap gap-1.5">
+      {chips.map((chip) => (
+        <li key={chip.text}>
+          <Badge tone={chip.good === null ? "neutral" : chip.good ? "success" : "warning"}>{chip.text}</Badge>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function Opportunities({ lead, onChecked }: { lead: Lead; onChecked: (lead: Lead) => void }) {
@@ -189,38 +183,42 @@ function Opportunities({ lead, onChecked }: { lead: Lead; onChecked: (lead: Lead
   }
 
   if (opportunities.length === 0) {
-    return <p className="mt-3 text-xs text-neutral-600">No obvious opportunities found on the homepage.</p>;
+    return <p className="mt-3 text-xs text-muted">No obvious opportunities found on the homepage.</p>;
   }
   return (
-    <div className="mt-3">
-      <h4 className="text-sm font-semibold">Possible opportunities (verify first)</h4>
-      <ul className="mt-1 space-y-2">
-        {opportunities.map((o) => (
-          <li key={o.key} className="rounded-md border border-neutral-200 p-2">
-            <p className="font-medium">{o.title}</p>
-            <p className="text-xs text-neutral-600">{o.detail}</p>
-            {o.sentence && (
-              <label className="mt-1 flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  disabled={saving}
-                  checked={lead.confirmed_opportunities.includes(o.key)}
-                  onChange={(e) => toggle(o.key, e.target.checked)}
-                />
-                I checked this — add it to the draft
-              </label>
-            )}
-          </li>
-        ))}
+    <div className="mt-4">
+      <h4 className="text-xs font-semibold tracking-wide text-muted uppercase">Possible opportunities · verify first</h4>
+      <ul className="mt-2 space-y-2">
+        {opportunities.map((o) => {
+          const confirmed = lead.confirmed_opportunities.includes(o.key);
+          return (
+            <li
+              key={o.key}
+              className={cn("rounded-lg border p-3", confirmed ? "border-success/40 bg-success-soft" : "border-border")}
+            >
+              <p className="text-sm font-medium">{o.title}</p>
+              <p className="mt-0.5 text-xs text-muted">{o.detail}</p>
+              {o.sentence && (
+                <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-medium">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    disabled={saving}
+                    checked={confirmed}
+                    onChange={(e) => toggle(o.key, e.target.checked)}
+                  />
+                  I checked this — add it to the draft
+                </label>
+              )}
+            </li>
+          );
+        })}
       </ul>
       {error && (
-        <p role="alert" className="mt-1 text-xs text-red-700">
-          {error}
+        <p className="mt-1">
+          <InlineMessage tone="danger">{error}</InlineMessage>
         </p>
       )}
-      <p className="mt-1 text-xs text-neutral-600">
-        Based on the first part of the homepage only. Open the site yourself, then tick what you confirmed.
-      </p>
     </div>
   );
 }

@@ -50,6 +50,7 @@ export interface PlaceDetails {
   lat: number;
   lon: number;
   source: "overture" | "foursquare";
+  area: string;
   source_release: string;
   source_datasets: string[];
   source_licenses: string[];
@@ -162,7 +163,7 @@ export async function getPlaceDetails(supabase: SupabaseClient, id: string): Pro
   const { data, error } = await supabase
     .from("places")
     .select(
-      "id,name,basic_category,websites,socials,phones,web_presence,has_instagram,confidence,operating_status,lat,lon,source,source_release,source_datasets,source_licenses,lead_score,chain_size",
+      "id,name,basic_category,websites,socials,phones,web_presence,has_instagram,confidence,operating_status,lat,lon,source,area,source_release,source_datasets,source_licenses,lead_score,chain_size",
     )
     .eq("id", id)
     .maybeSingle();

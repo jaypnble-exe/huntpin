@@ -2,6 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Button,
+  ExternalButtonLink,
+  IconCopy,
+  IconMessage,
+  IconRefresh,
+  InlineMessage,
+  Section,
+  SegmentedControl,
+  Textarea,
+} from "@/components/ui";
+import {
   buildDraft,
   defaultLanguage,
   namePart,
@@ -11,7 +22,14 @@ import {
   type OutreachLanguage,
 } from "@/lib/leads/outreach";
 
-const KIND_LABELS: Record<DraftKind, string> = { first: "First message", follow_up: "Follow-up" };
+const LANGUAGE_OPTIONS = (Object.keys(OUTREACH_TEMPLATES) as OutreachLanguage[]).map((key) => ({
+  value: key,
+  label: OUTREACH_TEMPLATES[key].label,
+}));
+const KIND_OPTIONS: { value: DraftKind; label: string }[] = [
+  { value: "first", label: "First message" },
+  { value: "follow_up", label: "Follow-up" },
+];
 
 /**
  * Personalised, editable, copyable draft. Nothing is ever sent automatically.
@@ -84,53 +102,30 @@ export function OutreachDraft({
     .filter((link): link is { phone: string; href: string } => link.href !== null);
 
   return (
-    <section aria-labelledby="draft-heading">
-      <div className="flex items-center justify-between gap-3">
-        <h3 id="draft-heading" className="font-semibold">
-          Outreach draft
-        </h3>
-        <div role="group" aria-label="Draft language" className="flex overflow-hidden rounded-md border border-neutral-300 text-xs">
-          {(Object.keys(OUTREACH_TEMPLATES) as OutreachLanguage[]).map((key) => (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={language === key}
-              onClick={() => language !== key && switchLanguage(key)}
-              className={`px-2.5 py-1 ${language === key ? "bg-neutral-900 text-white" : ""}`}
-            >
-              {OUTREACH_TEMPLATES[key].label}
-            </button>
-          ))}
-        </div>
+    <Section
+      title="Outreach draft"
+      description={
+        <>
+          Personalised with the business name
+          {confirmedSentences.length > 0
+            ? ` and ${confirmedSentences.length} finding${confirmedSentences.length === 1 ? "" : "s"} you confirmed`
+            : ""}
+          . You send it yourself, one business at a time.
+        </>
+      }
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <SegmentedControl label="Draft type" size="sm" options={KIND_OPTIONS} value={kind} onChange={switchKind} />
+        <SegmentedControl label="Draft language" size="sm" options={LANGUAGE_OPTIONS} value={language} onChange={switchLanguage} />
       </div>
-      <div role="group" aria-label="Draft type" className="mt-2 flex w-fit overflow-hidden rounded-md border border-neutral-300 text-xs">
-        {(["first", "follow_up"] as DraftKind[]).map((key) => (
-          <button
-            key={key}
-            type="button"
-            aria-pressed={kind === key}
-            onClick={() => kind !== key && switchKind(key)}
-            className={`px-2.5 py-1 ${kind === key ? "bg-neutral-900 text-white" : ""}`}
-          >
-            {KIND_LABELS[key]}
-          </button>
-        ))}
-      </div>
-      <p className="mt-1 text-xs text-neutral-600">
-        Personalised with the business name
-        {confirmedSentences.length > 0
-          ? ` and ${confirmedSentences.length} observation${confirmedSentences.length === 1 ? "" : "s"} you confirmed`
-          : ""}
-        . Edit before sending, contact one business at a time, and stop if they ask.
-      </p>
       <label className="sr-only" htmlFor="outreach-text">
         Message
       </label>
-      <textarea
+      <Textarea
         id="outreach-text"
         dir={OUTREACH_TEMPLATES[language].dir}
         lang={language}
-        className="mt-2 min-h-56 w-full rounded-md border border-neutral-300 px-2 py-1.5"
+        className="mt-3 min-h-60"
         value={text}
         onChange={(e) => {
           setText(e.target.value);
@@ -138,34 +133,30 @@ export function OutreachDraft({
           setCopied("idle");
         }}
       />
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={copy} className="rounded-md border border-neutral-300 px-3 py-1.5">
-          Copy message
-        </button>
-        {edited && text !== generated && (
-          <button type="button" onClick={rebuild} className="rounded-md border border-neutral-300 px-3 py-1.5">
-            Rebuild draft
-          </button>
-        )}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {whatsappLinks.map(({ phone, href }) => (
-          <a
-            key={phone}
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-md border border-green-600 px-3 py-1.5 text-green-800"
-          >
-            Open in WhatsApp ({phone})<span className="sr-only"> (opens in a new tab; you still press send)</span>
-          </a>
+          <ExternalButtonLink key={phone} href={href} variant="success">
+            <IconMessage />
+            WhatsApp <span dir="ltr">{phone}</span>
+          </ExternalButtonLink>
         ))}
-        <span role="status" className="text-xs">
-          {copied === "copied" && "Copied."}
-          {copied === "failed" && "Copy failed. Select the text and copy it manually."}
-        </span>
+        <Button onClick={copy}>
+          <IconCopy />
+          {copied === "copied" ? "Copied" : "Copy"}
+        </Button>
+        {edited && text !== generated && (
+          <Button variant="ghost" onClick={rebuild}>
+            <IconRefresh />
+            Rebuild draft
+          </Button>
+        )}
+        {copied === "failed" && <InlineMessage tone="danger">Copy failed. Select the text and copy it manually.</InlineMessage>}
       </div>
       {whatsappLinks.length > 0 && (
-        <p className="mt-1 text-xs text-neutral-600">WhatsApp opens with the message filled in. You review it and press send yourself.</p>
+        <p className="mt-2 text-xs text-muted">
+          WhatsApp opens with the message filled in; you review it and press send. If emojis show as “?”, use Copy and paste instead.
+        </p>
       )}
-    </section>
+    </Section>
   );
 }

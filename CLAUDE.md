@@ -54,7 +54,13 @@ Google-specific sections below.
 - **Batch website review** is allowed only as an operator-clicked action on
   saved leads: at most 20 per run, one check every 7 seconds, skipping leads
   checked in the last 30 days and opted-out leads. Never schedule it.
-- **Never scrape Instagram, Facebook or Google Maps** to find sellers.
+- **Never scrape Instagram, Facebook or Google Maps** to find sellers, ratings
+  or photos.
+- **Google ratings** are shown only through Google's own Maps Embed iframe
+  (`NEXT_PUBLIC_GOOGLE_MAPS_EMBED_KEY`, a separate browser key restricted to
+  the Maps Embed API and site URLs; free, unlimited per Google's pricing) or
+  via Maps URLs links. Do not fetch ratings/photos through the Places API
+  without the owner's approval (paid SKUs, no storage allowed).
 - Zero cost remains a hard requirement: free tiers only, no paid services.
 
 ## Working principles

@@ -1,18 +1,34 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { InstagramBadge, LeadStatusBadge, PresenceBadge, ScorePill, WebsiteStatusBadge } from "@/components/leads/LeadBadges";
+import {
+  Button,
+  ButtonLink,
+  Card,
+  EmptyState,
+  Field,
+  IconBell,
+  IconDownload,
+  PageHeader,
+  Select,
+  Spinner,
+  Stat,
+  Alert,
+  buttonClasses,
+  cn,
+} from "@/components/ui";
+import { isDue, localDate, wantsFollowUp } from "@/lib/leads/followUps";
 import { LEAD_STATUS_LABELS, LEAD_STATUSES } from "@/lib/leads/leads";
 import { CATEGORY_GROUPS, humanizeCategory, isCategoryGroup } from "@/lib/places/categories";
+import { reviewBonus } from "@/lib/places/leadScore";
 import { WEB_PRESENCE } from "@/lib/places/webPresence";
 import type { Lead } from "@/lib/server/leadsStore";
 import { PRESENCE_STYLES } from "../placeStyles";
 import { BatchReview } from "./BatchReview";
 import { LeadEditor } from "./LeadEditor";
-import { leadOpportunities, WEBSITE_STATUS_LABELS } from "./WebsiteCheck";
-import { isDue, localDate, wantsFollowUp } from "@/lib/leads/followUps";
-import { reviewBonus } from "@/lib/places/leadScore";
+import { leadOpportunities } from "./WebsiteCheck";
 
 /** Place score plus a bonus for website-review opportunities, capped at 100. */
 function leadScore(lead: Lead): number {
@@ -21,10 +37,16 @@ function leadScore(lead: Lead): number {
 
 type LoadState = { kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string };
 
-const selectClass = "mt-1 w-full rounded-md border border-black/20 bg-transparent px-2 py-1.5 dark:border-white/25";
-
 function formatDate(value: string | null): string {
-  return value ? new Date(value).toLocaleDateString() : "—";
+  return value ? new Date(value).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "—";
+}
+
+function FollowUpCell({ lead, today }: { lead: Lead; today: string }) {
+  if (!lead.follow_up_on || !wantsFollowUp(lead.lead_status)) return <span className="text-muted">—</span>;
+  const due = isDue(lead.follow_up_on, lead.lead_status, today);
+  const text =
+    lead.follow_up_on === today ? "Today" : lead.follow_up_on < today ? `Overdue · ${formatDate(lead.follow_up_on)}` : formatDate(lead.follow_up_on);
+  return <span className={cn("whitespace-nowrap", due && "font-semibold text-danger")}>{text}</span>;
 }
 
 export function LeadsDashboard() {
@@ -73,176 +95,168 @@ export function LeadsDashboard() {
   );
 
   const dueCount = leads.filter((lead) => isDue(lead.follow_up_on, lead.lead_status, today)).length;
+  const contactedCount = leads.filter((lead) => lead.first_contacted_at).length;
+  const repliedCount = leads.filter((lead) => lead.lead_status === "replied").length;
   const selected = leads.find((lead) => lead.id === selectedId) ?? null;
   const select = (id: string | null) => router.replace(id ? `/leads?lead=${id}` : "/leads", { scroll: false });
+  const updateLead = (lead: Lead) => setLeads((all) => all.map((l) => (l.id === lead.id ? lead : l)));
+  const filtersActive = Boolean(status || presence || category || dueOnly);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Leads</h1>
-          <p className="text-sm opacity-80">Saved from the map. Status, notes and contact dates are yours to manage.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <BatchReview leads={sorted} onUpdated={(lead) => setLeads((all) => all.map((l) => (l.id === lead.id ? lead : l)))} />
-          <button
-            type="button"
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <PageHeader
+        title="Leads"
+        description="Businesses you saved from the map. Track status, contact dates and follow-ups here."
+        actions={
+          <>
+            <BatchReview leads={sorted} onUpdated={updateLead} />
+            <a href={`/api/leads/export?${query}`} download className={buttonClasses({ variant: "secondary" })}>
+              <IconDownload />
+              Export CSV
+            </a>
+          </>
+        }
+      />
+
+      <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Leads" value={leads.length} hint={filtersActive ? "matching filters" : "saved"} />
+        <Stat label="Contacted" value={contactedCount} />
+        <Stat label="Replied" value={repliedCount} tone={repliedCount > 0 ? "success" : undefined} />
+        <Stat label="Follow-ups due" value={dueCount} tone={dueCount > 0 ? "danger" : undefined} />
+      </dl>
+
+      <Card className="mt-6 p-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:items-end">
+          <Field label="Status">
+            <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="">All statuses</option>
+              {LEAD_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {LEAD_STATUS_LABELS[s]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Web presence">
+            <Select value={presence} onChange={(e) => setPresence(e.target.value)}>
+              <option value="">Any</option>
+              {WEB_PRESENCE.map((p) => (
+                <option key={p} value={p}>
+                  {PRESENCE_STYLES[p].label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Category">
+            <Select value={category} onChange={(e) => setCategory(isCategoryGroup(e.target.value) ? e.target.value : "")}>
+              <option value="">All categories</option>
+              {Object.entries(CATEGORY_GROUPS).map(([key, group]) => (
+                <option key={key} value={key}>
+                  {group.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Sort">
+            <Select value={sort} onChange={(e) => setSort(e.target.value === "updated" ? "updated" : "score")}>
+              <option value="score">Best leads first</option>
+              <option value="updated">Recently updated</option>
+            </Select>
+          </Field>
+          <Button
+            variant={dueOnly ? "primary" : "secondary"}
             aria-pressed={dueOnly}
             onClick={() => setDueOnly((d) => !d)}
-            className={`rounded-md border px-3 py-1.5 text-sm font-medium ${dueOnly ? "border-red-700 bg-red-700 text-white" : "border-current"}`}
           >
-            {dueOnly
-              ? "Showing follow-ups due · show all"
-              : `Follow-ups due${dueCount > 0 ? ` (${dueCount})` : ""}`}
-          </button>
-          <a
-            href={`/api/leads/export?${query}`}
-            className="rounded-md border border-current px-3 py-1.5 text-sm font-medium"
-            download
-          >
-            Export CSV
-          </a>
+            <IconBell />
+            {dueOnly ? "Showing due only" : `Follow-ups due${dueCount > 0 ? ` (${dueCount})` : ""}`}
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-4">
-        <label className="block text-sm font-medium">
-          Lead status
-          <select className={selectClass} value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">All statuses</option>
-            {LEAD_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {LEAD_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm font-medium">
-          Web presence
-          <select className={selectClass} value={presence} onChange={(e) => setPresence(e.target.value)}>
-            <option value="">Any</option>
-            {WEB_PRESENCE.map((p) => (
-              <option key={p} value={p}>
-                {PRESENCE_STYLES[p].label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm font-medium">
-          Category
-          <select
-            className={selectClass}
-            value={category}
-            onChange={(e) => setCategory(isCategoryGroup(e.target.value) ? e.target.value : "")}
-          >
-            <option value="">All categories</option>
-            {Object.entries(CATEGORY_GROUPS).map(([key, group]) => (
-              <option key={key} value={key}>
-                {group.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm font-medium">
-          Sort
-          <select className={selectClass} value={sort} onChange={(e) => setSort(e.target.value === "updated" ? "updated" : "score")}>
-            <option value="score">Best leads first</option>
-            <option value="updated">Recently updated</option>
-          </select>
-        </label>
-      </div>
-
-      <div aria-live="polite" className="mt-4">
-        {load.kind === "loading" && <p className="text-sm">Loading leads…</p>}
-        {load.kind === "error" && (
-          <p role="alert" className="rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm">
-            {load.message}
-          </p>
-        )}
+      <div aria-live="polite" className="mt-6">
+        {load.kind === "loading" && <Spinner label="Loading leads…" />}
+        {load.kind === "error" && <Alert tone="danger">{load.message}</Alert>}
         {load.kind === "ready" && leads.length === 0 && (
-          <p className="rounded-lg border border-black/10 p-6 text-center text-sm dark:border-white/15">
-            {dueOnly ? "No follow-ups due today." : query ? "No leads match these filters." : "No leads yet. "}
-            {!query && (
-              <>
-                Open the{" "}
-                <Link href="/" className="underline">
-                  map
-                </Link>
-                , click a business and choose <strong>Save as lead</strong>.
-              </>
-            )}
-          </p>
+          <EmptyState
+            title={dueOnly ? "No follow-ups due today" : filtersActive ? "No leads match these filters" : "No leads yet"}
+            description={
+              dueOnly
+                ? "Nice. Leads you contact get a reminder 4 days later."
+                : filtersActive
+                  ? "Try clearing a filter."
+                  : "Open the map, click a business and choose Save as lead."
+            }
+            action={!filtersActive ? <ButtonLink href="/" variant="primary">Open the map</ButtonLink> : undefined}
+          />
         )}
       </div>
 
       {load.kind === "ready" && leads.length > 0 && (
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <caption className="sr-only">Saved leads</caption>
-            <thead className="border-b border-black/15 dark:border-white/20">
-              <tr>
-                <th scope="col" className="py-2 pr-4">Score</th>
-                <th scope="col" className="py-2 pr-4">Business</th>
-                <th scope="col" className="py-2 pr-4">Category</th>
-                <th scope="col" className="py-2 pr-4">Web presence</th>
-                <th scope="col" className="py-2 pr-4">Status</th>
-                <th scope="col" className="py-2 pr-4">Website check</th>
-                <th scope="col" className="py-2 pr-4">Last contacted</th>
-                <th scope="col" className="py-2 pr-4">Follow up</th>
-                <th scope="col" className="py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((lead) => {
-                const presenceStyle = lead.place ? PRESENCE_STYLES[lead.place.web_presence] : null;
-                return (
+        <Card className="mt-2 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <caption className="sr-only">Saved leads. Select a business to open it.</caption>
+              <thead className="border-b border-border bg-surface-muted text-xs font-medium tracking-wide text-muted uppercase">
+                <tr>
+                  <th scope="col" className="px-4 py-2.5">Score</th>
+                  <th scope="col" className="px-4 py-2.5">Business</th>
+                  <th scope="col" className="px-4 py-2.5">Web presence</th>
+                  <th scope="col" className="px-4 py-2.5">Status</th>
+                  <th scope="col" className="px-4 py-2.5">Website</th>
+                  <th scope="col" className="px-4 py-2.5">Last contact</th>
+                  <th scope="col" className="px-4 py-2.5">Follow-up</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {sorted.map((lead) => (
                   <tr
                     key={lead.id}
-                    className={`border-b border-black/10 dark:border-white/10 ${lead.id === selectedId ? "bg-blue-500/10" : ""}`}
+                    onClick={() => select(lead.id)}
+                    className={cn(
+                      "cursor-pointer transition-colors hover:bg-surface-muted",
+                      lead.id === selectedId && "bg-info-soft hover:bg-info-soft",
+                    )}
                   >
-                    <td className="py-2 pr-4 tabular-nums font-semibold">{leadScore(lead)}</td>
-                    <td className="py-2 pr-4">
-                      <bdi>{lead.label ?? lead.place?.name ?? "Unnamed"}</bdi>
-                      {lead.place?.has_instagram && <span className="ml-1 text-xs text-pink-700">IG</span>}
+                    <td className="px-4 py-3">
+                      <ScorePill score={leadScore(lead)} />
                     </td>
-                    <td className="py-2 pr-4">{humanizeCategory(lead.place?.basic_category ?? null)}</td>
-                    <td className="py-2 pr-4">
-                      {presenceStyle && (
-                        <span className="inline-flex items-center gap-1.5">
-                          <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ background: presenceStyle.color }} />
-                          {presenceStyle.label}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2 pr-4">{LEAD_STATUS_LABELS[lead.lead_status]}</td>
-                    <td className="py-2 pr-4">
-                      {lead.website_status ? WEBSITE_STATUS_LABELS[lead.website_status]?.label : "Not checked"}
-                      {lead.website_checked_at && (
-                        <span className="block text-xs opacity-70">{formatDate(lead.website_checked_at)}</span>
-                      )}
-                    </td>
-                    <td className="py-2 pr-4">{formatDate(lead.last_contacted_at)}</td>
-                    <td className="py-2 pr-4">
-                      {lead.follow_up_on && wantsFollowUp(lead.lead_status) ? (
-                        <span className={isDue(lead.follow_up_on, lead.lead_status, today) ? "font-semibold text-red-700" : ""}>
-                          {lead.follow_up_on === today ? "Today" : lead.follow_up_on < today ? `Overdue (${lead.follow_up_on})` : lead.follow_up_on}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="py-2">
-                      <button type="button" onClick={() => select(lead.id)} className="underline">
-                        Open<span className="sr-only"> {lead.label ?? "lead"}</span>
+                    <td className="max-w-xs px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          select(lead.id);
+                        }}
+                        className="block max-w-full truncate text-left font-medium hover:underline"
+                      >
+                        <bdi>{lead.label ?? lead.place?.name ?? "Unnamed"}</bdi>
                       </button>
+                      <span className="mt-0.5 flex items-center gap-2 text-xs text-muted">
+                        {humanizeCategory(lead.place?.basic_category ?? null)}
+                        {lead.place?.has_instagram && <InstagramBadge />}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">{lead.place && <PresenceBadge presence={lead.place.web_presence} />}</td>
+                    <td className="px-4 py-3">
+                      <LeadStatusBadge status={lead.lead_status} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <WebsiteStatusBadge status={lead.website_status} />
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-muted">{formatDate(lead.last_contacted_at)}</td>
+                    <td className="px-4 py-3">
+                      <FollowUpCell lead={lead} today={today} />
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {leads.length >= 1000 && <p className="mt-2 text-xs opacity-70">Showing the 1,000 most recently updated leads.</p>}
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {leads.length >= 1000 && (
+            <p className="border-t border-border px-4 py-2 text-xs text-muted">Showing the 1,000 most recently updated leads.</p>
+          )}
+        </Card>
       )}
 
       {selected && (
@@ -250,7 +264,7 @@ export function LeadsDashboard() {
           key={selected.id}
           lead={selected}
           onClose={() => select(null)}
-          onSaved={(lead) => setLeads((all) => all.map((l) => (l.id === lead.id ? lead : l)))}
+          onSaved={updateLead}
           onDeleted={(id) => {
             setLeads((all) => all.filter((l) => l.id !== id));
             select(null);

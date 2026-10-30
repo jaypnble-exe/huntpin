@@ -2,6 +2,22 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ScorePill } from "@/components/leads/LeadBadges";
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  Field,
+  IconFilter,
+  IconSearch,
+  IconStar,
+  Input,
+  SegmentedControl,
+  Select,
+  ToggleChip,
+  cn,
+} from "@/components/ui";
 import { DEFAULT_AREA, validateBBox, type BBox } from "@/lib/places/areas";
 import { CATEGORY_GROUPS, isCategoryGroup } from "@/lib/places/categories";
 import {
@@ -46,6 +62,19 @@ function useFocusedPlace() {
   }, [params]);
 }
 
+/** How many filters differ from the defaults (shown on the Filters button). */
+function activeFilterCount(filters: PlaceFilters): number {
+  const d = DEFAULT_FILTERS;
+  return [
+    [...filters.presence].sort().join() !== [...d.presence].sort().join(),
+    filters.minConfidence !== d.minConfidence,
+    filters.category !== d.category,
+    filters.instagramOnly !== d.instagramOnly,
+    filters.saved !== d.saved,
+    filters.hideChains !== d.hideChains,
+  ].filter(Boolean).length;
+}
+
 export function PlacesExplorer() {
   const focus = useFocusedPlace();
   const [filters, setFilters] = useState<PlaceFilters>(DEFAULT_FILTERS);
@@ -54,8 +83,7 @@ export function PlacesExplorer() {
   const [data, setData] = useState<PlaceFeatureCollection>(EMPTY);
   const [load, setLoad] = useState<LoadState>({ kind: "idle" });
   const [selectedId, setSelectedId] = useState<string | null>(focus.placeId);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [bestOpen, setBestOpen] = useState(false);
+  const [panel, setPanel] = useState<"none" | "filters" | "best">("none");
   // Bumped after saving a lead so its pin gets the saved halo.
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -118,6 +146,8 @@ export function PlacesExplorer() {
     }));
 
   const handleBounds = useCallback((next: BBox) => setBBox(next), []);
+  const togglePanel = (next: "filters" | "best") => setPanel((current) => (current === next ? "none" : next));
+  const filterCount = activeFilterCount(filters);
 
   return (
     <div className="relative h-[calc(100dvh-3rem)] w-full overflow-hidden">
@@ -129,236 +159,221 @@ export function PlacesExplorer() {
         onSelect={setSelectedId}
       />
 
-      {/* Search and filters */}
-      <div className="absolute top-3 left-3 z-10 w-[min(22rem,calc(100%-4.5rem))] space-y-2">
-        <div className="flex gap-2">
-          <label className="sr-only" htmlFor="place-search">
-            Search by business name
-          </label>
-          <input
-            id="place-search"
-            type="search"
-            dir="auto"
-            maxLength={MAX_NAME_QUERY_LENGTH}
-            placeholder="Search business name"
-            value={nameInput}
-            onChange={(event) => setNameInput(event.target.value)}
-            className="min-w-0 flex-1 rounded-lg border border-black/15 bg-white px-3 py-2 text-sm text-neutral-900 shadow"
-          />
-          <button
-            type="button"
-            onClick={() => setFiltersOpen((open) => !open)}
-            aria-expanded={filtersOpen}
+      {/* Toolbar, panels and status */}
+      <div className="absolute top-3 left-3 z-10 w-[min(24rem,calc(100%-4.5rem))] space-y-2">
+        <Card className="flex items-center gap-1.5 p-1.5">
+          <div className="relative min-w-0 flex-1">
+            <IconSearch className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted" />
+            <label className="sr-only" htmlFor="place-search">
+              Search by business name
+            </label>
+            <Input
+              id="place-search"
+              type="search"
+              dir="auto"
+              maxLength={MAX_NAME_QUERY_LENGTH}
+              placeholder="Search businesses"
+              value={nameInput}
+              onChange={(event) => setNameInput(event.target.value)}
+              className="border-transparent pl-8 shadow-none"
+            />
+          </div>
+          <Button
+            variant={panel === "filters" ? "primary" : "ghost"}
+            onClick={() => togglePanel("filters")}
+            aria-expanded={panel === "filters"}
             aria-controls="map-filters"
-            className="rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-medium text-neutral-900 shadow"
           >
+            <IconFilter />
             Filters
-          </button>
-          <button
-            type="button"
-            onClick={() => setBestOpen((open) => !open)}
-            aria-expanded={bestOpen}
+            {filterCount > 0 && (
+              <span className="rounded-full bg-info-soft px-1.5 text-xs text-info">{filterCount}</span>
+            )}
+          </Button>
+          <Button
+            variant={panel === "best" ? "primary" : "ghost"}
+            onClick={() => togglePanel("best")}
+            aria-expanded={panel === "best"}
             aria-controls="best-leads"
-            className="rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-medium whitespace-nowrap text-neutral-900 shadow"
           >
-            Best leads
-          </button>
-        </div>
+            <IconStar />
+            Best
+          </Button>
+        </Card>
 
-        {bestOpen && (
-          <div
-            id="best-leads"
-            className="max-h-[50dvh] overflow-y-auto rounded-lg border border-black/15 bg-white p-3 text-sm text-neutral-900 shadow"
-          >
-            <h2 className="font-semibold">Best leads in view</h2>
+        {panel === "best" && (
+          <Card id="best-leads" className="max-h-[55dvh] overflow-y-auto p-3">
+            <h2 className="px-1 text-sm font-semibold">Best leads in view</h2>
             {bestInView.length === 0 ? (
-              <p className="mt-1 text-xs text-neutral-600">No places in view.</p>
+              <p className="mt-1 px-1 text-xs text-muted">No places in view.</p>
             ) : (
-              <ol className="mt-2 space-y-1">
+              <ol className="mt-2 space-y-0.5">
                 {bestInView.map((feature) => (
                   <li key={feature.id}>
                     <button
                       type="button"
                       onClick={() => setSelectedId(feature.id)}
-                      className={`flex w-full items-center gap-2 rounded px-1.5 py-1 text-left hover:bg-neutral-100 ${feature.id === selectedId ? "bg-blue-50" : ""}`}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-surface-muted",
+                        feature.id === selectedId && "bg-info-soft",
+                      )}
                     >
-                      <span className="w-8 shrink-0 rounded bg-neutral-900 text-center text-xs font-semibold text-white">
-                        {feature.properties.score}
-                      </span>
+                      <ScorePill score={feature.properties.score} />
                       <span
                         aria-hidden
                         className="h-2.5 w-2.5 shrink-0 rounded-full"
                         style={{ background: PRESENCE_STYLES[feature.properties.presence].color }}
                       />
-                      <bdi className="truncate">{feature.properties.name ?? "Unnamed"}</bdi>
-                      {feature.properties.leadStatus && <span className="ml-auto text-xs text-blue-900">saved</span>}
+                      <bdi className="min-w-0 flex-1 truncate">{feature.properties.name ?? "Unnamed"}</bdi>
+                      {feature.properties.leadStatus && <Badge tone="info">Saved</Badge>}
                     </button>
                   </li>
                 ))}
               </ol>
             )}
-            <p className="mt-2 text-xs text-neutral-600">
-              Score 0–100 from web presence, phone, Instagram, category and confidence. Click a place for the breakdown.
+            <p className="mt-2 px-1 text-xs text-muted">
+              Score from web presence, phone, Instagram, category and how current the listing is.
             </p>
-          </div>
+          </Card>
         )}
 
-        {filtersOpen && (
-          <div
-            id="map-filters"
-            className="space-y-4 rounded-lg border border-black/15 bg-white p-4 text-sm text-neutral-900 shadow"
-          >
+        {panel === "filters" && (
+          <Card id="map-filters" className="max-h-[65dvh] space-y-4 overflow-y-auto p-4">
             <fieldset>
-              <legend className="font-semibold">Web presence (from open data)</legend>
-              <div className="mt-2 space-y-1.5">
+              <legend className="mb-2 text-xs font-medium text-muted">Web presence (from open data)</legend>
+              <div className="flex flex-wrap gap-1.5">
                 {WEB_PRESENCE.map((presence) => (
-                  <label key={presence} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={filters.presence.includes(presence)}
-                      onChange={() => togglePresence(presence)}
-                    />
-                    <span
-                      aria-hidden
-                      className="inline-block h-3 w-3 rounded-full"
-                      style={{ background: PRESENCE_STYLES[presence].color }}
-                    />
+                  <ToggleChip
+                    key={presence}
+                    pressed={filters.presence.includes(presence)}
+                    onToggle={() => togglePresence(presence)}
+                    dot={PRESENCE_STYLES[presence].color}
+                  >
                     {PRESENCE_STYLES[presence].label}
-                  </label>
+                  </ToggleChip>
                 ))}
               </div>
             </fieldset>
 
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+            <div className="space-y-2">
+              <Checkbox
+                label="Only places with Instagram"
                 checked={filters.instagramOnly}
                 onChange={(event) => setFilters((f) => ({ ...f, instagramOnly: event.target.checked }))}
               />
-              Only places with Instagram
-            </label>
-
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+              <Checkbox
+                label="Show chains (names at 3+ locations)"
                 checked={!filters.hideChains}
                 onChange={(event) => setFilters((f) => ({ ...f, hideChains: !event.target.checked }))}
               />
-              Show chains (names at 3+ locations)
-            </label>
+            </div>
 
-            <fieldset>
-              <legend className="font-semibold">Saved leads</legend>
-              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                {SAVED_OPTIONS.map(({ value, label }) => (
-                  <label key={value} className="flex items-center gap-1.5">
-                    <input
-                      type="radio"
-                      name="saved-filter"
-                      checked={filters.saved === value}
-                      onChange={() => setFilters((f) => ({ ...f, saved: value }))}
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            <div>
+              <p className="mb-1 text-xs font-medium text-muted">Saved leads</p>
+              <SegmentedControl
+                label="Saved leads"
+                size="sm"
+                options={SAVED_OPTIONS}
+                value={filters.saved}
+                onChange={(saved) => setFilters((f) => ({ ...f, saved }))}
+              />
+            </div>
 
-            <label className="block">
-              <span className="font-semibold">Category</span>
-              <select
-                className="mt-1 w-full rounded-md border border-black/20 px-2 py-1.5"
-                value={filters.category ?? ""}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setFilters((f) => ({ ...f, category: isCategoryGroup(value) ? value : null }));
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Category">
+                <Select
+                  value={filters.category ?? ""}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setFilters((f) => ({ ...f, category: isCategoryGroup(value) ? value : null }));
+                  }}
+                >
+                  <option value="">All</option>
+                  {Object.entries(CATEGORY_GROUPS).map(([key, group]) => (
+                    <option key={key} value={key}>
+                      {group.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Still exists (Overture)">
+                <Select
+                  value={filters.minConfidence}
+                  onChange={(event) => setFilters((f) => ({ ...f, minConfidence: Number(event.target.value) }))}
+                >
+                  {CONFIDENCE_OPTIONS.map((value) => (
+                    <option key={value} value={value}>
+                      {value === 0 ? "Any" : `${Math.round(value * 100)}%+`}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+
+            <div className="flex justify-between border-t border-border pt-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFilters(DEFAULT_FILTERS);
+                  setNameInput("");
                 }}
               >
-                <option value="">All categories</option>
-                {Object.entries(CATEGORY_GROUPS).map(([key, group]) => (
-                  <option key={key} value={key}>
-                    {group.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="font-semibold">Minimum existence confidence</span>
-              <select
-                className="mt-1 w-full rounded-md border border-black/20 px-2 py-1.5"
-                value={filters.minConfidence}
-                onChange={(event) => setFilters((f) => ({ ...f, minConfidence: Number(event.target.value) }))}
-              >
-                {CONFIDENCE_OPTIONS.map((value) => (
-                  <option key={value} value={value}>
-                    {value === 0 ? "Any" : `${Math.round(value * 100)}% or more`}
-                  </option>
-                ))}
-              </select>
-              <span className="mt-1 block text-xs text-neutral-600">
-                How likely the place still exists, per Overture. Low values are often stale.
-              </span>
-            </label>
-
-            <button
-              type="button"
-              onClick={() => {
-                setFilters(DEFAULT_FILTERS);
-                setNameInput("");
-              }}
-              className="text-sm underline"
-            >
-              Reset filters
-            </button>
-          </div>
+                Reset filters
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setPanel("none")}>
+                Done
+              </Button>
+            </div>
+          </Card>
         )}
 
         <p
           role="status"
           aria-live="polite"
-          className="inline-block rounded-md bg-white/90 px-2 py-1 text-xs text-neutral-900 shadow"
+          className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/95 px-3 py-1 text-xs shadow-sm"
         >
-          {load.kind === "loading" && "Loading places…"}
-          {load.kind === "zoom_in" && "Zoom in to load places."}
-          {load.kind === "error" && <span className="text-red-700">{load.message}</span>}
+          {load.kind === "loading" && (
+            <>
+              <span aria-hidden className="h-3 w-3 animate-spin rounded-full border-2 border-border-strong border-t-primary" />
+              Loading places…
+            </>
+          )}
+          {load.kind === "zoom_in" && "Zoom in to load places"}
+          {load.kind === "error" && <span className="text-danger">{load.message}</span>}
           {load.kind === "idle" &&
             (filters.presence.length === 0
-              ? "Select at least one web presence type."
+              ? "Select at least one web presence type"
               : data.truncated
-                ? `Showing the ${data.features.length.toLocaleString()} best-scoring matches. Zoom in or narrow filters to see all.`
+                ? `Best ${data.features.length.toLocaleString()} shown · zoom in for all`
                 : `${data.features.length.toLocaleString()} places in view`)}
         </p>
       </div>
 
       {/* Legend */}
-      <div className="absolute bottom-8 left-3 z-10 rounded-lg bg-white/90 p-2.5 text-xs text-neutral-900 shadow">
-        <ul className="space-y-1">
+      <Card className="absolute bottom-8 left-3 z-10 p-3 text-xs">
+        <ul className="space-y-1.5">
           {WEB_PRESENCE.filter((p) => filters.presence.includes(p)).map((presence) => (
             <li key={presence} className="flex items-center gap-2">
               <span
                 aria-hidden
-                className="inline-block h-3 w-3 rounded-full border border-white"
+                className="inline-block h-3 w-3 rounded-full ring-1 ring-white"
                 style={{ background: PRESENCE_STYLES[presence].color }}
               />
-              {PRESENCE_STYLES[presence].label}
-              <span className="text-neutral-500">{(counts[presence] ?? 0).toLocaleString()}</span>
+              <span className="flex-1">{PRESENCE_STYLES[presence].label}</span>
+              <span className="pl-3 text-muted tabular-nums">{(counts[presence] ?? 0).toLocaleString()}</span>
             </li>
           ))}
           <li className="flex items-center gap-2">
-            <span
-              aria-hidden
-              className="inline-block h-3 w-3 rounded-full border-2 bg-white"
-              style={{ borderColor: INSTAGRAM_RING_COLOR }}
-            />
-            Pink ring: has Instagram
+            <span aria-hidden className="inline-block h-3 w-3 rounded-full border-2 bg-surface" style={{ borderColor: INSTAGRAM_RING_COLOR }} />
+            Has Instagram
           </li>
           <li className="flex items-center gap-2">
             <span aria-hidden className="inline-block h-3 w-3 rounded-full" style={{ background: SAVED_LEAD_COLOR }} />
-            Navy halo: saved lead
+            Saved lead
           </li>
         </ul>
-      </div>
+      </Card>
 
       {selectedId && (
         <PlaceDetailsPanel

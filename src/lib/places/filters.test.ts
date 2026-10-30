@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_FILTERS, parsePlaceQuery, toSearchParams } from "./filters";
-import { googleMapsCoordinatesUrl, safeHref, telHref } from "./links";
+import { googleMapsCoordinatesUrl, googleMapsEmbedUrl, googleMapsSearchUrl, safeHref, telHref } from "./links";
 
 const JEDDAH_VIEW = [39.13, 21.57, 39.17, 21.6] as [number, number, number, number];
 
@@ -59,5 +59,23 @@ describe("links", () => {
     const url = new URL(googleMapsCoordinatesUrl(21.58, 39.15));
     expect(url.searchParams.get("api")).toBe("1");
     expect(url.searchParams.get("query")).toBe("21.58,39.15");
+  });
+});
+
+describe("Google Maps links for a business", () => {
+  it("searches by name and city, falling back to coordinates", () => {
+    const url = new URL(googleMapsSearchUrl("Mykonos Bistro", "Jeddah", 21.58, 39.15));
+    expect(url.searchParams.get("query")).toBe("Mykonos Bistro, Jeddah");
+    expect(new URL(googleMapsSearchUrl("  ", "Jeddah", 21.58, 39.15)).searchParams.get("query")).toBe("21.58,39.15");
+  });
+
+  it("builds an embed URL only with a key and a name", () => {
+    const href = googleMapsEmbedUrl("browser-key", { name: "مطعم ميكونوس", area: "Jeddah", lat: 21.58, lon: 39.15 });
+    const url = new URL(href!);
+    expect(url.origin + url.pathname).toBe("https://www.google.com/maps/embed/v1/place");
+    expect(url.searchParams.get("q")).toBe("مطعم ميكونوس, Jeddah");
+    expect(url.searchParams.get("center")).toBe("21.58,39.15");
+    expect(googleMapsEmbedUrl("", { name: "x", area: null, lat: 0, lon: 0 })).toBeNull();
+    expect(googleMapsEmbedUrl("k", { name: null, area: null, lat: 0, lon: 0 })).toBeNull();
   });
 });

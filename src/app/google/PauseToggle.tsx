@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button, InlineMessage } from "@/components/ui";
 
 export function PauseToggle({ paused }: { paused: boolean }) {
   const router = useRouter();
@@ -28,20 +29,10 @@ export function PauseToggle({ paused }: { paused: boolean }) {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button
-        type="button"
-        onClick={toggle}
-        disabled={saving}
-        aria-pressed={paused}
-        className="rounded-md border border-current px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-      >
+      <Button onClick={toggle} disabled={saving} aria-pressed={paused} variant={paused ? "primary" : "secondary"}>
         {saving ? "Saving…" : paused ? "Resume searches" : "Pause searches"}
-      </button>
-      {error && (
-        <p role="alert" className="text-sm text-red-600">
-          {error}
-        </p>
-      )}
+      </Button>
+      {error && <InlineMessage tone="danger">{error}</InlineMessage>}
     </div>
   );
 }

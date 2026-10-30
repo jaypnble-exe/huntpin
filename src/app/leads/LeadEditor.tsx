@@ -1,7 +1,25 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { InstagramBadge, LeadStatusBadge, PresenceBadge, ScorePill } from "@/components/leads/LeadBadges";
+import {
+  Button,
+  ButtonLink,
+  Drawer,
+  ExternalButtonLink,
+  Field,
+  IconCheck,
+  IconExternal,
+  IconMapPin,
+  IconPhone,
+  IconTrash,
+  InlineMessage,
+  Input,
+  Section,
+  Select,
+  Textarea,
+} from "@/components/ui";
+import { FOLLOW_UP_AFTER_DAYS, MAX_FOLLOW_UPS, wantsFollowUp } from "@/lib/leads/followUps";
 import {
   canDraftOutreach,
   LEAD_STATUS_LABELS,
@@ -11,14 +29,11 @@ import {
   type LeadStatus,
 } from "@/lib/leads/leads";
 import { humanizeCategory } from "@/lib/places/categories";
-import { googleMapsCoordinatesUrl, safeHref, telHref } from "@/lib/places/links";
+import { googleMapsSearchUrl, safeHref, telHref } from "@/lib/places/links";
+import { isInstagramUrl } from "@/lib/places/webPresence";
 import type { Lead } from "@/lib/server/leadsStore";
-import { PRESENCE_STYLES } from "../placeStyles";
-import { FOLLOW_UP_AFTER_DAYS, MAX_FOLLOW_UPS, wantsFollowUp } from "@/lib/leads/followUps";
 import { OutreachDraft } from "./OutreachDraft";
 import { leadOpportunities, WebsiteCheck } from "./WebsiteCheck";
-
-const inputClass = "mt-1 w-full rounded-md border border-neutral-300 px-2 py-1.5";
 
 function toDateInput(value: string | null): string {
   return value ? value.slice(0, 10) : "";
@@ -43,12 +58,6 @@ export function LeadEditor({
   const [followUpOn, setFollowUpOn] = useState(lead.follow_up_on ?? "");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   function applyLead(updated: Lead) {
     setStatus(updated.lead_status);
@@ -114,191 +123,165 @@ export function LeadEditor({
         .map((o) => o.sentence!),
     [lead],
   );
-  const presence = place ? PRESENCE_STYLES[place.web_presence] : null;
+  const links = place ? [...place.websites, ...place.socials] : [];
 
   return (
-    <aside
-      aria-label="Lead details"
-      className="fixed inset-x-0 bottom-0 z-30 max-h-[85dvh] overflow-y-auto rounded-t-xl bg-white p-4 text-sm text-neutral-900 shadow-2xl sm:inset-y-0 sm:right-0 sm:left-auto sm:max-h-none sm:w-[28rem] sm:rounded-none"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-lg font-semibold" dir="auto">
-          {lead.label ?? place?.name ?? "Lead"}
-        </h2>
-        <button type="button" onClick={onClose} aria-label="Close lead" className="rounded px-2 text-xl leading-none">
-          ×
-        </button>
-      </div>
-
-      {place && (
-        <div className="mt-1 space-y-2">
-          <p className="text-neutral-600">
-            {humanizeCategory(place.basic_category)} · {place.area}
-            {presence && (
-              <>
-                {" · "}
-                <span style={{ color: presence.color }} className="font-medium">
-                  {presence.label}
-                </span>
-              </>
-            )}
-            {place.has_instagram && <span className="text-pink-700"> · Instagram</span>}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href={`/?place=${encodeURIComponent(lead.overture_place_id ?? "")}&lat=${place.lat}&lon=${place.lon}`}
-              className="rounded-md border border-neutral-300 px-2.5 py-1"
-            >
-              Show on map
-            </Link>
-            <a
-              href={googleMapsCoordinatesUrl(place.lat, place.lon)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-md border border-neutral-300 px-2.5 py-1"
-            >
-              Google Maps<span className="sr-only"> (opens in a new tab)</span>
-            </a>
-          </div>
-          <ul className="space-y-0.5">
-            {[...place.websites, ...place.socials].map((url) => {
-              const href = safeHref(url);
-              return (
-                <li key={url} className="break-all">
-                  {href ? (
-                    <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="text-blue-700 underline">
-                      {url}
-                    </a>
-                  ) : (
-                    url
-                  )}
-                </li>
-              );
-            })}
-            {place.phones.map((phone) => {
-              const href = telHref(phone);
-              return (
-                <li key={phone} dir="ltr">
-                  {href ? (
-                    <a href={href} className="text-blue-700 underline">
-                      {phone}
-                    </a>
-                  ) : (
-                    phone
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
-      <form onSubmit={save} className="mt-4 space-y-3 border-t border-neutral-200 pt-4">
-        <label className="block font-medium">
-          Label
-          <input
-            className={inputClass}
-            dir="auto"
-            maxLength={MAX_LABEL_LENGTH}
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-          />
-        </label>
-        <label className="block font-medium">
-          Status
-          <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value as LeadStatus)}>
-            {LEAD_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {LEAD_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block font-medium">
-          Notes
-          <textarea
-            className={`${inputClass} min-h-24`}
-            dir="auto"
-            maxLength={MAX_NOTES_LENGTH}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </label>
-        <div className="grid grid-cols-2 gap-3">
-          <label className="block font-medium">
-            First contacted
-            <input type="date" className={inputClass} value={firstContacted} onChange={(e) => setFirstContacted(e.target.value)} />
-          </label>
-          <label className="block font-medium">
-            Last contacted
-            <input type="date" className={inputClass} value={lastContacted} onChange={(e) => setLastContacted(e.target.value)} />
-          </label>
-        </div>
-        {wantsFollowUp(status) && (
-          <div>
-            <label className="block font-medium">
-              Next follow-up
-              <input type="date" className={inputClass} value={followUpOn} onChange={(e) => setFollowUpOn(e.target.value)} />
-            </label>
-            <p className="mt-1 text-xs text-neutral-600">
-              Follow-ups sent: {lead.follow_up_count} of {MAX_FOLLOW_UPS}.
-              {lead.follow_up_count >= MAX_FOLLOW_UPS
-                ? " That is the maximum; no more reminders unless you set a date yourself."
-                : ` Set automatically ${FOLLOW_UP_AFTER_DAYS} days after each contact.`}
-            </p>
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          <button type="submit" disabled={busy} className="rounded-md bg-neutral-900 px-3 py-1.5 font-medium text-white disabled:opacity-50">
-            Save
-          </button>
-          {status !== "do_not_contact" && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                patch({ markContacted: true }, lead.first_contacted_at ? "Marked as followed up today." : "Marked as contacted today.")
-              }
-              className="rounded-md border border-neutral-300 px-3 py-1.5 disabled:opacity-50"
-            >
-              {lead.first_contacted_at ? "Mark followed up today" : "Mark contacted today"}
-            </button>
+    <Drawer
+      label="Lead details"
+      title={lead.label ?? place?.name ?? "Lead"}
+      onClose={onClose}
+      subtitle={
+        <div className="flex flex-wrap items-center gap-1.5">
+          {place && <ScorePill score={place.lead_score} />}
+          <LeadStatusBadge status={lead.lead_status} />
+          {place && <PresenceBadge presence={place.web_presence} />}
+          {place?.has_instagram && <InstagramBadge />}
+          {place && (
+            <span className="text-xs">
+              {humanizeCategory(place.basic_category)} · {place.area}
+            </span>
           )}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={remove}
-            className="ml-auto rounded-md px-3 py-1.5 text-red-700 underline disabled:opacity-50"
-          >
-            Delete lead
-          </button>
         </div>
-        {message && (
-          <p role={message.kind === "error" ? "alert" : "status"} className={message.kind === "error" ? "text-red-700" : "text-green-700"}>
-            {message.text}
-          </p>
+      }
+    >
+      <div className="space-y-6">
+        {place && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <ButtonLink
+                size="sm"
+                href={`/?place=${encodeURIComponent(lead.overture_place_id ?? "")}&lat=${place.lat}&lon=${place.lon}`}
+              >
+                <IconMapPin />
+                Show on map
+              </ButtonLink>
+              <ExternalButtonLink size="sm" href={googleMapsSearchUrl(place.name, place.area, place.lat, place.lon)}>
+                <IconExternal />
+                Google Maps
+              </ExternalButtonLink>
+              {place.phones.map((phone) => {
+                const href = telHref(phone);
+                return href ? (
+                  <a key={phone} href={href} dir="ltr" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-strong px-2.5 text-xs font-medium hover:bg-surface-muted">
+                    <IconPhone />
+                    {phone}
+                  </a>
+                ) : null;
+              })}
+            </div>
+            {links.length > 0 && (
+              <ul className="space-y-1 text-sm">
+                {links.map((url) => {
+                  const href = safeHref(url);
+                  return (
+                    <li key={url} className="flex items-center gap-2 break-all">
+                      {href ? (
+                        <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="text-info hover:underline">
+                          {url}
+                        </a>
+                      ) : (
+                        url
+                      )}
+                      {isInstagramUrl(url) && <InstagramBadge />}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         )}
-      </form>
 
-      <div className="mt-4 border-t border-neutral-200 pt-4">
-        <WebsiteCheck lead={lead} onChecked={applyLead} />
-      </div>
+        <Section title="Status & notes">
+          <form onSubmit={save} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Label">
+                <Input dir="auto" maxLength={MAX_LABEL_LENGTH} value={label} onChange={(e) => setLabel(e.target.value)} />
+              </Field>
+              <Field label="Status">
+                <Select value={status} onChange={(e) => setStatus(e.target.value as LeadStatus)}>
+                  {LEAD_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {LEAD_STATUS_LABELS[s]}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+            <Field label="Notes">
+              <Textarea
+                className="min-h-20"
+                dir="auto"
+                maxLength={MAX_NOTES_LENGTH}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="First contacted">
+                <Input type="date" value={firstContacted} onChange={(e) => setFirstContacted(e.target.value)} />
+              </Field>
+              <Field label="Last contacted">
+                <Input type="date" value={lastContacted} onChange={(e) => setLastContacted(e.target.value)} />
+              </Field>
+            </div>
+            {wantsFollowUp(status) && (
+              <Field
+                label="Next follow-up"
+                hint={
+                  `Follow-ups sent: ${lead.follow_up_count} of ${MAX_FOLLOW_UPS}. ` +
+                  (lead.follow_up_count >= MAX_FOLLOW_UPS
+                    ? "That is the maximum; no more reminders unless you set a date."
+                    : `Set automatically ${FOLLOW_UP_AFTER_DAYS} days after each contact.`)
+                }
+              >
+                <Input type="date" value={followUpOn} onChange={(e) => setFollowUpOn(e.target.value)} />
+              </Field>
+            )}
 
-      <div className="mt-4 border-t border-neutral-200 pt-4">
-        {canDraftOutreach(status) ? (
-          <OutreachDraft
-            phones={place?.phones ?? []}
-            name={label.trim() || place?.name || null}
-            confirmedSentences={confirmedSentences}
-            defaultKind={lead.first_contacted_at ? "follow_up" : "first"}
-          />
-        ) : (
-          <p className="text-neutral-600">
-            No outreach drafts for leads marked “{LEAD_STATUS_LABELS[status]}”.
-          </p>
-        )}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button type="submit" variant="primary" disabled={busy}>
+                Save
+              </Button>
+              {status !== "do_not_contact" && (
+                <Button
+                  disabled={busy}
+                  onClick={() =>
+                    patch({ markContacted: true }, lead.first_contacted_at ? "Marked as followed up today." : "Marked as contacted today.")
+                  }
+                >
+                  <IconCheck />
+                  {lead.first_contacted_at ? "Mark followed up today" : "Mark contacted today"}
+                </Button>
+              )}
+              {message && <InlineMessage tone={message.kind === "error" ? "danger" : "success"}>{message.text}</InlineMessage>}
+            </div>
+          </form>
+        </Section>
+
+        <div className="border-t border-border pt-5">
+          <WebsiteCheck lead={lead} onChecked={applyLead} />
+        </div>
+
+        <div className="border-t border-border pt-5">
+          {canDraftOutreach(status) ? (
+            <OutreachDraft
+              phones={place?.phones ?? []}
+              name={label.trim() || place?.name || null}
+              confirmedSentences={confirmedSentences}
+              defaultKind={lead.first_contacted_at ? "follow_up" : "first"}
+            />
+          ) : (
+            <p className="text-sm text-muted">No outreach drafts for leads marked “{LEAD_STATUS_LABELS[status]}”.</p>
+          )}
+        </div>
+
+        <div className="border-t border-border pt-4">
+          <Button variant="danger" size="sm" disabled={busy} onClick={remove}>
+            <IconTrash />
+            Delete lead
+          </Button>
+        </div>
       </div>
-    </aside>
+    </Drawer>
   );
 }

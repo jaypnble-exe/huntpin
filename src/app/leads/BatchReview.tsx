@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { BATCH_REVIEW_INTERVAL_MS, pickBatchCandidates } from "@/lib/leads/batchReview";
 import type { Lead } from "@/lib/server/leadsStore";
+import { Button, IconGlobe, Spinner } from "@/components/ui";
 import { defaultUrl } from "./WebsiteCheck";
 
 type State =
@@ -72,26 +73,23 @@ export function BatchReview({ leads, onUpdated }: { leads: Lead[]; onUpdated: (l
     <div className="flex flex-wrap items-center gap-2 text-sm">
       {state.kind === "running" ? (
         <>
-          <span role="status" aria-live="polite">
-            Checking {state.done + 1} of {state.total}: <bdi>{state.current}</bdi>
-          </span>
-          <button type="button" onClick={() => (stopRef.current = true)} className="rounded-md border border-current px-3 py-1.5">
+          <Spinner label={`Checking ${state.done + 1} of ${state.total}: ${state.current}`} />
+          <Button size="sm" onClick={() => (stopRef.current = true)}>
             Stop
-          </button>
+          </Button>
         </>
       ) : (
-        <button
-          type="button"
+        <Button
           onClick={run}
           disabled={candidates.length === 0}
           title={candidates.length === 0 ? "No saved leads with a website that needs checking" : undefined}
-          className="rounded-md border border-current px-3 py-1.5 font-medium disabled:opacity-40"
         >
+          <IconGlobe />
           Review websites ({candidates.length})
-        </button>
+        </Button>
       )}
       {state.kind === "finished" && (
-        <span role="status" className="text-xs opacity-80">
+        <span role="status" className="text-xs text-muted">
           {state.stopped ? "Stopped. " : "Done. "}
           {Object.entries(state.counts)
             .map(([key, n]) => `${n} ${labels[key] ?? key}`)

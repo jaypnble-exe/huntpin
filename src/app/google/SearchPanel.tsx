@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import type { SearchResponseBody } from "@/lib/server/search";
 import { googleMapsPlaceUrl } from "@/lib/mapsUrl";
 import { buildTextQuery, LOCATION_LENGTH, NICHE_LENGTH } from "@/lib/searchLimits";
+import { Alert, Button, ExternalButtonLink, Field, IconExternal, IconSearch, Input, Spinner } from "@/components/ui";
 
 type SearchSuccess = Extract<SearchResponseBody, { ok: true }>;
 
@@ -22,9 +23,6 @@ export interface SearchPanelProps {
   used: number | null;
   limit: number | null;
 }
-
-const inputClass =
-  "mt-1 w-full rounded-md border border-black/20 bg-transparent px-3 py-2 dark:border-white/25";
 
 export function SearchPanel({
   blockedReason,
@@ -76,16 +74,14 @@ export function SearchPanel({
   }
 
   return (
-    <section aria-labelledby="search-heading" className="mt-6">
-      <h2 id="search-heading" className="text-lg font-semibold">
+    <section aria-labelledby="search-heading">
+      <h2 id="search-heading" className="text-base font-semibold">
         Find businesses
       </h2>
 
       <form onSubmit={handleSubmit} className="mt-3 grid gap-4 sm:grid-cols-[2fr_2fr_1fr_auto] sm:items-end">
-        <label className="block text-sm font-medium">
-          Niche / business type
-          <input
-            className={inputClass}
+        <Field label="Niche / business type">
+          <Input
             name="niche"
             required
             minLength={NICHE_LENGTH.min}
@@ -94,11 +90,9 @@ export function SearchPanel({
             value={niche}
             onChange={(event) => setNiche(event.target.value)}
           />
-        </label>
-        <label className="block text-sm font-medium">
-          City or location
-          <input
-            className={inputClass}
+        </Field>
+        <Field label="City or location">
+          <Input
             name="location"
             required
             minLength={LOCATION_LENGTH.min}
@@ -107,11 +101,9 @@ export function SearchPanel({
             value={location}
             onChange={(event) => setLocation(event.target.value)}
           />
-        </label>
-        <label className="block text-sm font-medium">
-          Max results
-          <input
-            className={inputClass}
+        </Field>
+        <Field label="Max results">
+          <Input
             name="maxResults"
             type="number"
             required
@@ -121,24 +113,21 @@ export function SearchPanel({
             value={maxResults}
             onChange={(event) => setMaxResults(Number(event.target.value))}
           />
-        </label>
-        <button
-          type="submit"
-          disabled={Boolean(blockedReason) || loading}
-          className="rounded-md bg-foreground px-4 py-2 font-medium text-background disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        </Field>
+        <Button type="submit" variant="primary" disabled={Boolean(blockedReason) || loading}>
+          <IconSearch />
           {loading ? "Searching…" : "Search"}
-        </button>
+        </Button>
       </form>
 
       {blockedReason && (
-        <p className="mt-2 text-sm opacity-80">Search unavailable: {blockedReason}</p>
+        <p className="mt-2 text-sm text-muted">Search unavailable: {blockedReason}</p>
       )}
 
       <dialog
         ref={dialogRef}
         aria-labelledby="confirm-heading"
-        className="m-auto max-w-md rounded-lg bg-background p-6 text-foreground backdrop:bg-black/50"
+        className="m-auto max-w-md rounded-2xl border border-border bg-surface p-6 text-foreground shadow-2xl backdrop:bg-black/50"
       >
         <h3 id="confirm-heading" className="text-lg font-semibold">
           Run a real Google search?
@@ -171,30 +160,16 @@ export function SearchPanel({
           the actual cost.
         </p>
         <div className="mt-5 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => dialogRef.current?.close()}
-            className="rounded-md border border-current px-4 py-2 text-sm"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={runConfirmedSearch}
-            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background"
-          >
+          <Button onClick={() => dialogRef.current?.close()}>Cancel</Button>
+          <Button variant="primary" onClick={runConfirmedSearch}>
             Run 1 Google search
-          </button>
+          </Button>
         </div>
       </dialog>
 
       <div aria-live="polite" className="mt-6">
-        {state.kind === "loading" && <p className="text-sm">Searching…</p>}
-        {state.kind === "error" && (
-          <p role="alert" className="rounded-lg border border-red-500/50 bg-red-500/10 p-4 text-sm">
-            {state.message}
-          </p>
-        )}
+        {state.kind === "loading" && <Spinner label="Searching…" />}
+        {state.kind === "error" && <Alert tone="danger">{state.message}</Alert>}
         {state.kind === "success" && <Results query={state.query} result={state.result} />}
       </div>
     </section>
@@ -211,7 +186,7 @@ function Results({ query, result }: { query: string; result: SearchSuccess }) {
         are not saved yet.
       </p>
       {idsOnly && (
-        <p className="mt-1 text-sm opacity-80">
+        <p className="mt-1 text-sm text-muted">
           ID-only mode: Google returned place IDs but no names or addresses. Open
           each place in Google Maps to see the business.
         </p>
@@ -222,7 +197,7 @@ function Results({ query, result }: { query: string; result: SearchSuccess }) {
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-black/15 dark:border-white/20">
+            <thead className="border-b border-border text-xs font-medium tracking-wide text-muted uppercase">
               <tr>
                 <th scope="col" className="py-2 pr-4">#</th>
                 <th scope="col" className="py-2 pr-4">Business</th>
@@ -232,25 +207,20 @@ function Results({ query, result }: { query: string; result: SearchSuccess }) {
             </thead>
             <tbody>
               {result.places.map((place, index) => (
-                <tr key={place.placeId} className="border-b border-black/10 dark:border-white/10">
+                <tr key={place.placeId} className="border-b border-border">
                   <td className="py-2 pr-4 align-top">{index + 1}</td>
                   <td className="py-2 pr-4 align-top">
-                    {place.displayName ?? <span className="opacity-60">Not requested</span>}
-                    <div className="font-mono text-xs break-all opacity-60">{place.placeId}</div>
+                    {place.displayName ?? <span className="text-muted">Not requested</span>}
+                    <div className="font-mono text-xs break-all text-muted">{place.placeId}</div>
                   </td>
                   <td className="py-2 pr-4 align-top">
-                    {place.formattedAddress ?? <span className="opacity-60">Not requested</span>}
+                    {place.formattedAddress ?? <span className="text-muted">Not requested</span>}
                   </td>
                   <td className="py-2 align-top">
-                    <a
-                      href={googleMapsPlaceUrl(place.placeId, place.displayName ?? query)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="whitespace-nowrap underline underline-offset-2"
-                    >
+                    <ExternalButtonLink size="sm" href={googleMapsPlaceUrl(place.placeId, place.displayName ?? query)}>
+                      <IconExternal />
                       Open in Google Maps
-                      <span className="sr-only"> (opens in a new tab)</span>
-                    </a>
+                    </ExternalButtonLink>
                   </td>
                 </tr>
               ))}
