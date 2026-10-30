@@ -7,7 +7,7 @@ import { NavLinks } from "./NavLinks";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LeadRadar",
+  title: "HuntPin",
   description: "Map of local businesses that appear to have no website listed",
 };
 
@@ -24,7 +24,7 @@ export default function RootLayout({
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <IconRadar className="h-4 w-4" />
             </span>
-            LeadRadar
+            HuntPin
           </Link>
           <NavLinks />
           {authConfig(process.env).kind === "on" && <LogoutButton />}

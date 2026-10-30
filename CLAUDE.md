@@ -1,6 +1,8 @@
-# CLAUDE.md — Google Maps Lead Finder
+# CLAUDE.md — HuntPin (lead finder)
 
 ## Project goal
+
+The app is called **HuntPin** (renamed from LeadRadar on 2026-10-31).
 
 Build a small, reliable lead-generation dashboard for a freelance web/mobile development business.
 
@@ -73,8 +75,10 @@ Google-specific sections below.
   contact. Daily cap on first messages (`DAILY_OUTREACH_LIMIT`, max 50),
   enforced on the server. Never add automatic or bulk sending.
 - **Templates** live in `app_settings` (`outreach_templates`) and can be edited
-  per paragraph. Category pitches describe what is offered, never claims about
-  the business.
+  per paragraph. First messages use the pitch for the business type
+  (`src/lib/leads/pitchTypes.ts`, ~26 types), else its category group, else
+  the general question; the operator can override it per draft. Pitches
+  describe what is offered, never claims about the business.
 - **Deal stages** after `replied`: `meeting`, `proposal_sent`, `won`, `lost`
   (migration 010), with `deal_value` in SAR.
 - **Login**: one operator password (`APP_PASSWORD_HASH`, `SESSION_SECRET`,

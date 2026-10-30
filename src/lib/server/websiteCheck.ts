@@ -27,7 +27,7 @@ const MAX_REDIRECTS = 5;
 const HOP_TIMEOUT_MS = 8_000;
 const TOTAL_TIMEOUT_MS = 20_000;
 const ALLOWED_PORTS = new Set(["", "80", "443"]);
-const USER_AGENT = "LeadRadar-website-check/1.0 (manual single check)";
+const USER_AGENT = "HuntPin-website-check/1.0 (manual single check)";
 
 // Private, loopback, link-local, shared, documentation, multicast and other
 // reserved ranges. Anything here is never contacted.

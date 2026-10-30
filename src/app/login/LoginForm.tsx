@@ -32,7 +32,7 @@ export function LoginForm() {
 
   return (
     <Card className="mx-auto mt-16 max-w-sm p-6">
-      <h1 className="text-lg font-semibold">Sign in to LeadRadar</h1>
+      <h1 className="text-lg font-semibold">Sign in to HuntPin</h1>
       <form onSubmit={submit} className="mt-4 space-y-3">
         <Field label="Password">
           <Input

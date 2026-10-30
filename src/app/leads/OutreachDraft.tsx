@@ -12,22 +12,28 @@ import {
   InlineMessage,
   Section,
   SegmentedControl,
+  Select,
   Textarea,
   buttonClasses,
 } from "@/components/ui";
 import { mailtoHref } from "@/lib/places/emails";
-import { CATEGORY_GROUPS, type CategoryGroup } from "@/lib/places/categories";
+import { type CategoryGroup } from "@/lib/places/categories";
 import {
+  autoPitch,
   buildDraft,
   defaultLanguage,
   emailSubject,
+  isPitchChoice,
   namePart,
   OUTREACH_LANGUAGES,
+  pitchLabel,
   whatsappHref,
   type DraftKind,
   type OutreachLanguage,
+  type PitchChoice,
   type PortfolioMode,
 } from "@/lib/leads/outreach";
+import { PITCH_TYPE_KEYS, PITCH_TYPES, type PitchType } from "@/lib/leads/pitchTypes";
 import { safeHref } from "@/lib/places/links";
 import { useOutreachTemplates } from "./useOutreachTemplates";
 
@@ -56,6 +62,7 @@ export function OutreachDraft({
   confirmedSentences,
   defaultKind = "first",
   category = null,
+  pitchType = null,
   onSendOpened,
 }: {
   phones: string[];
@@ -65,6 +72,8 @@ export function OutreachDraft({
   defaultKind?: DraftKind;
   /** The business's category group: first messages use its pitch. */
   category?: CategoryGroup | null;
+  /** The business's type (finer than the group); its pitch comes first. */
+  pitchType?: PitchType | null;
   /** Called when the operator opens WhatsApp or their mail app with the draft. */
   onSendOpened?: (channel: "whatsapp" | "email") => void;
 }) {
@@ -75,6 +84,10 @@ export function OutreachDraft({
   const [linkChoice, setLinkChoice] = useState<boolean | null>(null);
   const includeLink = linkChoice ?? kind === "follow_up";
   const portfolioMode: PortfolioMode = !PORTFOLIO_URL ? "none" : includeLink ? "link" : kind === "first" ? "offer" : "none";
+  // null = automatic: the business type's pitch, else its group's, else the general question.
+  const [pitchChoice, setPitchChoice] = useState<PitchChoice | null>(null);
+  const automaticPitch = autoPitch(templates[language], pitchType, category);
+  const pitch = pitchChoice ?? automaticPitch;
   const generated = useMemo(
     () =>
       buildDraft({
@@ -83,10 +96,10 @@ export function OutreachDraft({
         sentences: confirmedSentences.map((s) => s[language]),
         kind,
         portfolio: { mode: portfolioMode, url: PORTFOLIO_URL },
-        category,
+        pitch,
         templates,
       }),
-    [language, name, confirmedSentences, kind, portfolioMode, category, templates],
+    [language, name, confirmedSentences, kind, portfolioMode, pitch, templates],
   );
   const [text, setText] = useState(generated);
   const [edited, setEdited] = useState(false);
@@ -116,6 +129,14 @@ export function OutreachDraft({
     if (edited && !window.confirm("Change the portfolio line? Your edits to this draft will be replaced.")) return;
     setEdited(false);
     setLinkChoice(next);
+    setCopied("idle");
+  }
+
+  function switchPitch(value: string) {
+    const next = value === "auto" ? null : isPitchChoice(value) ? value : null;
+    if (edited && !window.confirm("Change the pitch? Your edits to this draft will be replaced.")) return;
+    setEdited(false);
+    setPitchChoice(next);
     setCopied("idle");
   }
 
@@ -151,9 +172,7 @@ export function OutreachDraft({
           {confirmedSentences.length > 0
             ? ` and ${confirmedSentences.length} finding${confirmedSentences.length === 1 ? "" : "s"} you confirmed`
             : ""}
-          {kind === "first" && category && templates[language].pitches[category]?.trim()
-            ? `, with the ${CATEGORY_GROUPS[category].label.toLowerCase()} pitch`
-            : ""}
+          {kind === "first" && pitch !== "general" ? `, with the “${pitchLabel(pitch)}” pitch` : ""}
           . You send it yourself, one business at a time.
         </>
       }
@@ -161,6 +180,23 @@ export function OutreachDraft({
       <div className="flex flex-wrap items-center gap-2">
         <SegmentedControl label="Draft type" size="sm" options={KIND_OPTIONS} value={kind} onChange={switchKind} />
         <SegmentedControl label="Draft language" size="sm" options={LANGUAGE_OPTIONS} value={language} onChange={switchLanguage} />
+        {kind === "first" && (
+          <Select
+            aria-label="Pitch"
+            title="Which pitch the first message uses. Change it if the business type in the data is wrong."
+            className="h-7 w-auto py-0 text-xs"
+            value={pitchChoice ?? "auto"}
+            onChange={(e) => switchPitch(e.target.value)}
+          >
+            <option value="auto">Pitch: automatic ({pitchLabel(automaticPitch)})</option>
+            {PITCH_TYPE_KEYS.map((key) => (
+              <option key={key} value={`type:${key}`}>
+                Pitch: {PITCH_TYPES[key].label}
+              </option>
+            ))}
+            <option value="general">Pitch: general question</option>
+          </Select>
+        )}
       </div>
       {PORTFOLIO_URL && (
         <div className="mt-2">

@@ -147,7 +147,7 @@ saved leads; skipped if an import looks too small), and rescores. To run it
 automatically on the 5th of each month at 03:00 while you are logged in:
 `powershell -ExecutionPolicy Bypass -File scripts\register-refresh-task.ps1`.
 Output goes to `logs\refresh.log`. Remove the task with
-`schtasks /Delete /TN "LeadRadar monthly places refresh" /F`.
+`schtasks /Delete /TN "HuntPin monthly places refresh" /F`.
 
 **Google listing.** The place panel's "Find on Google Maps" searches Google Maps
 by business name and city (Maps URLs: no API key, no billing account, no

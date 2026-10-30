@@ -19,6 +19,7 @@ import {
   buildDraft,
   DEFAULT_TEMPLATES,
   emailSubject,
+  isPitchChoice,
   MAX_PARAGRAPH_LENGTH,
   MAX_SUBJECT_LENGTH,
   OUTREACH_LANGUAGES,
@@ -26,8 +27,10 @@ import {
   type LanguageTemplates,
   type OutreachLanguage,
   type OutreachTemplates,
+  type PitchChoice,
 } from "@/lib/leads/outreach";
-import { CATEGORY_GROUPS, isCategoryGroup, type CategoryGroup } from "@/lib/places/categories";
+import { PITCH_TYPE_KEYS, PITCH_TYPES } from "@/lib/leads/pitchTypes";
+import { CATEGORY_GROUPS, type CategoryGroup } from "@/lib/places/categories";
 import { setCachedTemplates } from "../leads/useOutreachTemplates";
 
 type LoadState = { kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string };
@@ -58,7 +61,7 @@ export function TemplatesEditor() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [previewKind, setPreviewKind] = useState<DraftKind>("first");
-  const [previewCategory, setPreviewCategory] = useState<CategoryGroup | "">("food");
+  const [previewPitch, setPreviewPitch] = useState<PitchChoice>("type:cafe");
 
   useEffect(() => {
     request("GET")
@@ -127,10 +130,11 @@ export function TemplatesEditor() {
         name: SAMPLE_NAME[language],
         sentences: [],
         kind: previewKind,
-        category: previewCategory || null,
+        // An emptied pitch box falls back to the general question, as in real drafts.
+        pitch: previewPitch,
         templates,
       }),
-    [language, previewKind, previewCategory, templates],
+    [language, previewKind, previewPitch, templates],
   );
 
   const paragraph = (label: string, value: string, onChange: (value: string) => void, hint?: string) => (
@@ -198,8 +202,25 @@ export function TemplatesEditor() {
 
             <Card className="p-5">
               <Section
-                title="Category pitches"
-                description="In first messages, the pitch replaces the general question for businesses in that category. Describe what you offer, not what they lack. Leave a box empty to use the general question."
+                title="Pitches by business type"
+                description="In first messages, the pitch replaces the general question for businesses of that type. Describe what you offer, not what they lack. Leave a box empty to fall back to the group pitch below."
+              >
+                <div className="space-y-3">
+                  {PITCH_TYPE_KEYS.map((key) => (
+                    <div key={key}>
+                      {paragraph(PITCH_TYPES[key].label, t.typePitches[key], (v) =>
+                        update((c) => ({ ...c, typePitches: { ...c.typePitches, [key]: v } })),
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            </Card>
+
+            <Card className="p-5">
+              <Section
+                title="Group pitches (fallback)"
+                description="Used when a business's type has no pitch above. Leave a box empty to use the general question."
               >
                 <div className="space-y-3">
                   {(Object.keys(CATEGORY_GROUPS) as CategoryGroup[]).map((group) => (
@@ -268,17 +289,26 @@ export function TemplatesEditor() {
                   />
                   {previewKind === "first" && (
                     <Select
-                      aria-label="Preview category"
+                      aria-label="Preview pitch"
                       className="w-auto"
-                      value={previewCategory}
-                      onChange={(e) => setPreviewCategory(isCategoryGroup(e.target.value) ? e.target.value : "")}
+                      value={previewPitch}
+                      onChange={(e) => setPreviewPitch(isPitchChoice(e.target.value) ? e.target.value : "general")}
                     >
-                      <option value="">No category (general question)</option>
-                      {(Object.keys(CATEGORY_GROUPS) as CategoryGroup[]).map((group) => (
-                        <option key={group} value={group}>
-                          {CATEGORY_GROUPS[group].label}
-                        </option>
-                      ))}
+                      <optgroup label="Business types">
+                        {PITCH_TYPE_KEYS.map((key) => (
+                          <option key={key} value={`type:${key}`}>
+                            {PITCH_TYPES[key].label}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Groups (fallback)">
+                        {(Object.keys(CATEGORY_GROUPS) as CategoryGroup[]).map((group) => (
+                          <option key={group} value={`group:${group}`}>
+                            {CATEGORY_GROUPS[group].label}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <option value="general">General question</option>
                     </Select>
                   )}
                 </div>

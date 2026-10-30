@@ -37,6 +37,7 @@ import { googleMapsSearchUrl, telHref } from "@/lib/places/links";
 import { SocialLinks } from "@/components/leads/SocialLinks";
 import { mailtoHref } from "@/lib/places/emails";
 import type { Lead } from "@/lib/server/leadsStore";
+import { pitchTypeOf } from "@/lib/leads/pitchTypes";
 import { OutreachDraft } from "./OutreachDraft";
 import { leadOpportunities, WebsiteCheck } from "./WebsiteCheck";
 
@@ -292,6 +293,7 @@ export function LeadEditor({
               phones={place?.phones ?? []}
               emails={place?.emails ?? []}
               category={categoryGroupOf(place?.basic_category ?? null)}
+              pitchType={pitchTypeOf(place?.basic_category ?? null)}
               name={label.trim() || place?.name || null}
               confirmedSentences={confirmedSentences}
               defaultKind={lead.first_contacted_at ? "follow_up" : "first"}

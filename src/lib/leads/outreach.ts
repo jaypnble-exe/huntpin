@@ -1,6 +1,7 @@
 // Outreach drafts. Drafts only: nothing here sends a message. The operator
 // edits, copies, and sends each one manually.
 import { CATEGORY_GROUPS, type CategoryGroup } from "../places/categories";
+import { PITCH_TYPE_KEYS, PITCH_TYPES, type PitchType } from "./pitchTypes";
 
 export const OUTREACH_LANGUAGES = {
   en: { label: "English", dir: "ltr" },
@@ -18,7 +19,9 @@ export type DraftKind = "first" | "follow_up";
 export interface LanguageTemplates {
   first: { greeting: string; greetingNamed: string; intro: string; question: string; closing: string };
   followUp: { greeting: string; greetingNamed: string; body: string; closing: string };
-  /** Replaces the first message's general question for businesses in that category group. */
+  /** Replaces the first message's general question for businesses of that type. */
+  typePitches: Record<PitchType, string>;
+  /** Fallback for businesses whose type has no pitch: one per category group. */
   pitches: Record<CategoryGroup, string>;
   subjects: { first: string; followUp: string };
 }
@@ -44,6 +47,34 @@ export const DEFAULT_TEMPLATES: OutreachTemplates = {
       greetingNamed: "Hi {name} team! 👋 Just following up on my earlier message.",
       body: "I’d be glad to help with your website, a custom system, a mobile app, or automating part of your work.",
       closing: "Would a quick chat this week suit you? If now isn’t a good time, no problem at all, just let me know. 😊",
+    },
+    typePitches: {
+      cafe: "For cafés, I build things like digital QR menus, online pre-ordering for pickup, and simple loyalty programs, so regulars order from you directly.",
+      restaurant: "For restaurants, I build things like digital QR menus, online ordering and table bookings, so customers can order from you directly, not only through delivery apps.",
+      food_store: "For sweets shops, bakeries and food stores, I build online catalogues with WhatsApp ordering, and pre-orders for occasions and large orders.",
+      salon: "For salons and barbershops, I build websites with online booking and reminders, so clients can book without calling or messaging.",
+      spa: "For spas and wellness centres, I build websites with online booking, packages and gift cards, plus reminders for clients.",
+      gym: "For gyms and fitness studios, I build websites and apps for memberships, class bookings and member check-ins.",
+      clinic: "For clinics, I build websites with online appointment booking, doctor profiles and patient reminders, which make it easier for new patients to find and choose you.",
+      hospital: "For hospitals and labs, I build appointment booking, online results access and patient portals, plus internal systems to cut paperwork.",
+      pharmacy: "For pharmacies, I build online ordering with WhatsApp or delivery, and simple systems for stock and repeat prescriptions.",
+      fashion: "For fashion and beauty shops, I build online stores with WhatsApp ordering, so customers can browse your collections and order any time.",
+      electronics: "For electronics and mobile shops, I build online stores with stock and prices, plus systems to track repairs and warranties.",
+      building: "For building materials and contracting, I build websites with product catalogues, quote requests and project galleries, plus simple systems for orders and deliveries.",
+      gifts: "For flower, gift and hobby shops, I build online stores with delivery booking and occasion orders, so customers can order ahead.",
+      events: "For event and party services, I build websites with portfolios, packages and online booking requests.",
+      real_estate: "For real estate offices, I build websites with property listings, search and enquiry forms, plus systems to manage listings and clients.",
+      travel: "For travel agencies, I build websites with packages, visa and booking requests, plus systems to manage customers and bookings.",
+      home_service: "For home services and maintenance, I build websites where customers can book a visit or request a quote online, plus systems to schedule jobs.",
+      office: "For offices and professional services, I build websites that present your services and team, with enquiry forms, plus internal systems and automations for everyday work.",
+      legal: "For law firms, I build professional websites with consultation booking, plus systems to manage cases and client documents.",
+      car_service: "For car service and parts, I build websites with service booking, price requests and parts catalogues, plus systems to track jobs and customers.",
+      car_dealer: "For car dealers and rentals, I build websites with car listings, booking and enquiry forms, plus systems to manage the fleet.",
+      hotel: "For hotels and stays, I build websites with direct booking, so guests can reserve with you without booking-site commissions.",
+      school: "For schools and training centres, I build websites with online registration, course pages and portals for parents or students.",
+      entertainment: "For entertainment venues, I build websites with online ticketing, event calendars and bookings.",
+      logistics: "For suppliers, factories and logistics, I build websites with product catalogues and quote requests, plus systems for orders, stock and shipments.",
+      pets: "For pet shops and vets, I build websites with online booking for grooming or visits, and online ordering for supplies.",
     },
     pitches: {
       food: "For restaurants and cafés, I build things like digital QR menus, online ordering and table bookings, so customers can order from you directly, not only through delivery apps.",
@@ -72,6 +103,34 @@ export const DEFAULT_TEMPLATES: OutreachTemplates = {
       greetingNamed: "مرحباً فريق {name}! 👋 أتابع معكم بخصوص رسالتي السابقة.",
       body: "يسعدني مساعدتكم في موقعكم الإلكتروني، أو نظام مخصص، أو تطبيق جوال، أو أتمتة جزء من أعمالكم.",
       closing: "هل يناسبكم أن نتحدث قليلاً هذا الأسبوع؟ وإذا لم يكن الوقت مناسباً فلا بأس أبداً، فقط أخبروني. 😊",
+    },
+    typePitches: {
+      cafe: "للمقاهي، أبني حلولاً مثل المنيو الرقمي برمز QR، والطلب المسبق أونلاين للاستلام، وبرامج ولاء بسيطة، ليطلب عملاؤكم الدائمون منكم مباشرة.",
+      restaurant: "للمطاعم، أبني حلولاً مثل المنيو الرقمي برمز QR، والطلب أونلاين، وحجز الطاولات، ليطلب العملاء منكم مباشرة وليس فقط عبر تطبيقات التوصيل.",
+      food_store: "لمحلات الحلويات والمخابز والأغذية، أبني كتالوجات أونلاين مع الطلب عبر واتساب، والطلبات المسبقة للمناسبات والكميات الكبيرة.",
+      salon: "للصالونات ومحلات الحلاقة، أبني مواقع مع حجز المواعيد أونلاين والتذكيرات، ليحجز العملاء دون الحاجة للاتصال أو المراسلة.",
+      spa: "لمراكز السبا والعناية، أبني مواقع مع الحجز أونلاين، والباقات وبطاقات الهدايا، إضافة إلى تذكيرات للعملاء.",
+      gym: "للنوادي الرياضية واستوديوهات اللياقة، أبني مواقع وتطبيقات للاشتراكات وحجز الحصص وتسجيل حضور الأعضاء.",
+      clinic: "للعيادات، أبني مواقع مع حجز المواعيد أونلاين، وصفحات تعريفية للأطباء، وتذكيرات للمرضى، مما يسهّل على المرضى الجدد إيجادكم واختياركم.",
+      hospital: "للمستشفيات والمختبرات، أبني أنظمة لحجز المواعيد، والاطلاع على النتائج أونلاين، وبوابات للمرضى، إضافة إلى أنظمة داخلية تقلّل الأعمال الورقية.",
+      pharmacy: "للصيدليات، أبني الطلب أونلاين عبر واتساب أو التوصيل، وأنظمة بسيطة للمخزون والوصفات المتكررة.",
+      fashion: "لمحلات الأزياء ومستحضرات التجميل، أبني متاجر إلكترونية مع الطلب عبر واتساب، ليتصفح العملاء تشكيلاتكم ويطلبوا في أي وقت.",
+      electronics: "لمحلات الإلكترونيات والجوالات، أبني متاجر إلكترونية تعرض المنتجات والأسعار، إضافة إلى أنظمة لمتابعة الصيانة والضمان.",
+      building: "لمواد البناء والمقاولات، أبني مواقع مع كتالوج المنتجات وطلب عروض الأسعار ومعرض المشاريع، إضافة إلى أنظمة بسيطة للطلبات والتوصيل.",
+      gifts: "لمحلات الورد والهدايا والهوايات، أبني متاجر إلكترونية مع حجز التوصيل وطلبات المناسبات، ليطلب العملاء مسبقاً.",
+      events: "لخدمات المناسبات والحفلات، أبني مواقع تعرض أعمالكم وباقاتكم مع طلبات الحجز أونلاين.",
+      real_estate: "لمكاتب العقار، أبني مواقع لعرض العقارات مع البحث ونماذج الاستفسار، إضافة إلى أنظمة لإدارة العروض والعملاء.",
+      travel: "لوكالات السفر، أبني مواقع تعرض الباقات وتستقبل طلبات التأشيرات والحجوزات، إضافة إلى أنظمة لإدارة العملاء والحجوزات.",
+      home_service: "لخدمات المنازل والصيانة، أبني مواقع يحجز فيها العملاء زيارة أو يطلبون عرض سعر أونلاين، إضافة إلى أنظمة لجدولة الأعمال.",
+      office: "للمكاتب والخدمات المهنية، أبني مواقع تعرض خدماتكم وفريقكم مع نماذج للاستفسار، إضافة إلى أنظمة داخلية وأتمتة للأعمال اليومية.",
+      legal: "لمكاتب المحاماة، أبني مواقع احترافية مع حجز الاستشارات، إضافة إلى أنظمة لإدارة القضايا ومستندات العملاء.",
+      car_service: "لصيانة السيارات وقطع الغيار، أبني مواقع مع حجز مواعيد الصيانة وطلب الأسعار وكتالوج القطع، إضافة إلى أنظمة لمتابعة الطلبات والعملاء.",
+      car_dealer: "لمعارض وتأجير السيارات، أبني مواقع تعرض السيارات مع الحجز ونماذج الاستفسار، إضافة إلى أنظمة لإدارة الأسطول.",
+      hotel: "للفنادق وأماكن الإقامة، أبني مواقع مع الحجز المباشر، ليحجز الضيوف معكم دون عمولات مواقع الحجز.",
+      school: "للمدارس ومراكز التدريب، أبني مواقع مع التسجيل أونلاين، وصفحات للدورات، وبوابات لأولياء الأمور والطلاب.",
+      entertainment: "لأماكن الترفيه، أبني مواقع مع بيع التذاكر أونلاين وتقويم الفعاليات والحجوزات.",
+      logistics: "للموردين والمصانع وشركات الشحن، أبني مواقع مع كتالوج المنتجات وطلب عروض الأسعار، إضافة إلى أنظمة للطلبات والمخزون والشحنات.",
+      pets: "لمحلات الحيوانات الأليفة والعيادات البيطرية، أبني مواقع مع حجز مواعيد العناية أو الزيارات، والطلب أونلاين للمستلزمات.",
     },
     pitches: {
       food: "للمطاعم والمقاهي، أبني حلولاً مثل المنيو الرقمي برمز QR، والطلب أونلاين، وحجز الطاولات، ليطلب العملاء منكم مباشرة وليس فقط عبر تطبيقات التوصيل.",
@@ -123,6 +182,7 @@ const PARAGRAPH = MAX_PARAGRAPH_LENGTH;
 const LANGUAGE_SHAPE: Shape = {
   first: { greeting: PARAGRAPH, greetingNamed: PARAGRAPH, intro: PARAGRAPH, question: PARAGRAPH, closing: PARAGRAPH },
   followUp: { greeting: PARAGRAPH, greetingNamed: PARAGRAPH, body: PARAGRAPH, closing: PARAGRAPH },
+  typePitches: Object.fromEntries(PITCH_TYPE_KEYS.map((key) => [key, PARAGRAPH])),
   pitches: Object.fromEntries(Object.keys(CATEGORY_GROUPS).map((key) => [key, PARAGRAPH])),
   subjects: { first: MAX_SUBJECT_LENGTH, followUp: MAX_SUBJECT_LENGTH },
 };
@@ -235,6 +295,39 @@ const PORTFOLIO_LINES: Record<"link" | "offer", Record<OutreachLanguage, (url: s
   },
 };
 
+// ---------------------------------------------------------------------------
+// Pitch choice: the business type's pitch, else its group's, else the
+// general question. The operator can override it per draft (the data's
+// category is sometimes wrong).
+
+export type PitchChoice = "general" | `type:${PitchType}` | `group:${CategoryGroup}`;
+
+function choiceText(t: LanguageTemplates, choice: PitchChoice): string {
+  if (choice.startsWith("type:")) return t.typePitches[choice.slice(5) as PitchType]?.trim() ?? "";
+  if (choice.startsWith("group:")) return t.pitches[choice.slice(6) as CategoryGroup]?.trim() ?? "";
+  return "";
+}
+
+/** The pitch used when the operator hasn't picked one. */
+export function autoPitch(t: LanguageTemplates, pitchType: PitchType | null, group: CategoryGroup | null): PitchChoice {
+  if (pitchType && choiceText(t, `type:${pitchType}`)) return `type:${pitchType}`;
+  if (group && choiceText(t, `group:${group}`)) return `group:${group}`;
+  return "general";
+}
+
+export function pitchLabel(choice: PitchChoice): string {
+  if (choice.startsWith("type:")) return PITCH_TYPES[choice.slice(5) as PitchType].label;
+  if (choice.startsWith("group:")) return CATEGORY_GROUPS[choice.slice(6) as CategoryGroup].label;
+  return "General question";
+}
+
+export function isPitchChoice(value: string): value is PitchChoice {
+  if (value === "general") return true;
+  if (value.startsWith("type:")) return Object.hasOwn(PITCH_TYPES, value.slice(5));
+  if (value.startsWith("group:")) return Object.hasOwn(CATEGORY_GROUPS, value.slice(6));
+  return false;
+}
+
 /**
  * Personalised draft: the business name in the greeting, a pitch for the
  * business's category in first messages, and only the observations the
@@ -247,6 +340,8 @@ export function buildDraft({
   kind = "first",
   portfolio,
   category = null,
+  pitchType = null,
+  pitch,
   templates = DEFAULT_TEMPLATES,
 }: {
   language: OutreachLanguage;
@@ -255,15 +350,18 @@ export function buildDraft({
   kind?: DraftKind;
   portfolio?: { mode: PortfolioMode; url: string | null };
   category?: CategoryGroup | null;
+  pitchType?: PitchType | null;
+  /** Overrides the automatic pitch. */
+  pitch?: PitchChoice;
   templates?: OutreachTemplates;
 }): string {
   const t = templates[language];
   const message = kind === "first" ? t.first : t.followUp;
   const greeting = name ? message.greetingNamed.split("{name}").join(name) : message.greeting;
-  const pitch = category ? t.pitches[category]?.trim() : "";
+  const pitchText = choiceText(t, pitch ?? autoPitch(t, pitchType, category));
   const paragraphs =
     kind === "first"
-      ? [greeting, t.first.intro, pitch || t.first.question, t.first.closing]
+      ? [greeting, t.first.intro, pitchText || t.first.question, t.first.closing]
       : [greeting, t.followUp.body, t.followUp.closing];
   // First message: after the intro. Follow-up: right after the greeting.
   if (sentences.length > 0) {

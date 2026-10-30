@@ -5,7 +5,7 @@
 // them the app only answers on localhost (as before). Half-configured auth
 // fails closed.
 
-export const SESSION_COOKIE = "leadradar_session";
+export const SESSION_COOKIE = "huntpin_session";
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const MIN_SECRET_LENGTH = 32;
 

@@ -33,9 +33,9 @@ export function createSupabaseAdmin(
   });
 }
 
-const globalForSupabase = globalThis as { __clientFinderSupabase?: SupabaseClient };
+const globalForSupabase = globalThis as { __huntPinSupabase?: SupabaseClient };
 
 export function getSupabaseAdmin(): SupabaseClient {
-  globalForSupabase.__clientFinderSupabase ??= createSupabaseAdmin();
-  return globalForSupabase.__clientFinderSupabase;
+  globalForSupabase.__huntPinSupabase ??= createSupabaseAdmin();
+  return globalForSupabase.__huntPinSupabase;
 }

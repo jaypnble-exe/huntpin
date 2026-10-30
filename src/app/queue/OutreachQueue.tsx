@@ -37,6 +37,7 @@ import { mailtoHref } from "@/lib/places/emails";
 import { googleMapsSearchUrl, telHref } from "@/lib/places/links";
 import type { Lead } from "@/lib/server/leadsStore";
 import type { Queue, QueueItem } from "@/lib/server/queueStore";
+import { pitchTypeOf } from "@/lib/leads/pitchTypes";
 import { OutreachDraft } from "../leads/OutreachDraft";
 import { leadOpportunities } from "../leads/WebsiteCheck";
 
@@ -44,7 +45,7 @@ type Mode = "fresh" | "followUps";
 type LoadState = { kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string };
 
 // Skipped businesses stay out of the queue for two weeks, in this browser only.
-const SKIP_KEY = "leadradar.queue.skipped";
+const SKIP_KEY = "huntpin.queue.skipped";
 const SKIP_DAYS = 14;
 
 function readSkipped(): Record<string, number> {
@@ -431,6 +432,7 @@ function QueueCard({
           confirmedSentences={confirmedSentences}
           defaultKind={item.kind}
           category={categoryGroupOf(place.basic_category)}
+          pitchType={pitchTypeOf(place.basic_category)}
           onSendOpened={onOpened}
         />
 
