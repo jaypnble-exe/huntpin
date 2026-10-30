@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DEFAULT_AREA, validateBBox, type BBox } from "@/lib/places/areas";
 import { CATEGORY_GROUPS, isCategoryGroup } from "@/lib/places/categories";
@@ -25,13 +26,28 @@ type LoadState =
   | { kind: "zoom_in" }
   | { kind: "error"; message: string };
 
+/** Reads `?place=<id>&lat=<lat>&lon=<lon>` (from "Show on map") to focus one place. */
+function useFocusedPlace() {
+  const params = useSearchParams();
+  return useMemo(() => {
+    const place = params.get("place");
+    const lat = Number(params.get("lat"));
+    const lon = Number(params.get("lon"));
+    if (!place || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+      return { area: DEFAULT_AREA, placeId: null };
+    }
+    return { area: { ...DEFAULT_AREA, center: [lon, lat] as [number, number], zoom: 17 }, placeId: place };
+  }, [params]);
+}
+
 export function PlacesExplorer() {
+  const focus = useFocusedPlace();
   const [filters, setFilters] = useState<PlaceFilters>(DEFAULT_FILTERS);
   const [nameInput, setNameInput] = useState("");
   const [bbox, setBBox] = useState<BBox | null>(null);
   const [data, setData] = useState<PlaceFeatureCollection>(EMPTY);
   const [load, setLoad] = useState<LoadState>({ kind: "idle" });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(focus.placeId);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Debounce typing in the name search.
@@ -92,7 +108,7 @@ export function PlacesExplorer() {
   return (
     <div className="relative h-[calc(100dvh-3rem)] w-full overflow-hidden">
       <LeadMap
-        area={DEFAULT_AREA}
+        area={focus.area}
         data={data}
         selectedId={selectedId}
         onBoundsChange={handleBounds}

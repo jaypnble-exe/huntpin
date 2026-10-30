@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import { PlacesExplorer } from "./PlacesExplorer";
 
 export default function Home() {
-  return <PlacesExplorer />;
+  return (
+    <Suspense>
+      <PlacesExplorer />
+    </Suspense>
+  );
 }

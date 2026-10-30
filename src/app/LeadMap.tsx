@@ -89,7 +89,8 @@ export function LeadMap({ area, data, selectedId, onBoundsChange, onSelect }: Le
           id: "places-selected",
           type: "circle",
           source: SOURCE_ID,
-          filter: ["==", ["get", "id"], ""],
+          // Apply a selection made before the map finished loading.
+          filter: ["==", ["get", "id"], latest.current.selectedId ?? ""],
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 7, 17, 14],
             "circle-color": "rgba(0,0,0,0)",

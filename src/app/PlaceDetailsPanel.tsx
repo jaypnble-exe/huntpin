@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { LEAD_STATUS_LABELS } from "@/lib/leads/leads";
 import { humanizeCategory } from "@/lib/places/categories";
 import { googleMapsCoordinatesUrl, safeHref, telHref } from "@/lib/places/links";
 import { isInstagramUrl } from "@/lib/places/webPresence";
+import type { Lead } from "@/lib/server/leadsStore";
 import type { PlaceDetails } from "@/lib/server/placesStore";
 import { PRESENCE_STYLES } from "./placeStyles";
 
@@ -83,8 +86,85 @@ export function PlaceDetailsPanel({ id, onClose }: { id: string; onClose: () => 
           {state.message}
         </p>
       )}
-      {state.kind === "loaded" && <Details place={state.place} />}
+      {state.kind === "loaded" && (
+        <>
+          <LeadSave placeId={state.place.id} />
+          <Details place={state.place} />
+        </>
+      )}
     </aside>
+  );
+}
+
+type LeadState =
+  | { kind: "loading" }
+  | { kind: "none" }
+  | { kind: "saving" }
+  | { kind: "saved"; lead: Lead }
+  | { kind: "error"; message: string };
+
+function LeadSave({ placeId }: { placeId: string }) {
+  const [state, setState] = useState<LeadState>({ kind: "loading" });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setState({ kind: "loading" });
+    fetch(`/api/leads?placeId=${encodeURIComponent(placeId)}`, { signal: controller.signal })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body?.message ?? "Leads are unavailable.");
+        setState(body.lead ? { kind: "saved", lead: body.lead } : { kind: "none" });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setState({ kind: "error", message: error instanceof Error ? error.message : "Leads are unavailable." });
+      });
+    return () => controller.abort();
+  }, [placeId]);
+
+  async function save() {
+    setState({ kind: "saving" });
+    try {
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.message ?? "Could not save the lead.");
+      setState({ kind: "saved", lead: body.lead });
+    } catch (error) {
+      setState({ kind: "error", message: error instanceof Error ? error.message : "Could not save the lead." });
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-lg bg-neutral-100 p-3">
+      {state.kind === "loading" && <p className="text-neutral-600">Checking leads…</p>}
+      {(state.kind === "none" || state.kind === "saving") && (
+        <button
+          type="button"
+          onClick={save}
+          disabled={state.kind === "saving"}
+          className="rounded-md bg-neutral-900 px-3 py-1.5 font-medium text-white disabled:opacity-50"
+        >
+          {state.kind === "saving" ? "Saving…" : "Save as lead"}
+        </button>
+      )}
+      {state.kind === "saved" && (
+        <p>
+          Saved as lead · <strong>{LEAD_STATUS_LABELS[state.lead.lead_status]}</strong>{" "}
+          <Link href={`/leads?lead=${state.lead.id}`} className="text-blue-700 underline">
+            Open in Leads
+          </Link>
+        </p>
+      )}
+      {state.kind === "error" && (
+        <p role="alert" className="text-red-700">
+          {state.message}
+        </p>
+      )}
+    </div>
   );
 }
 

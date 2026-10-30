@@ -23,6 +23,9 @@ export default function RootLayout({
             <Link href="/" className="hover:underline">
               Map
             </Link>
+            <Link href="/leads" className="hover:underline">
+              Leads
+            </Link>
             <Link href="/google" className="hover:underline">
               Google search
             </Link>
