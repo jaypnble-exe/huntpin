@@ -20,7 +20,6 @@ import { googleMapsCoordinatesUrl, googleMapsSearchUrl, safeHref, telHref } from
 import { isInstagramUrl } from "@/lib/places/webPresence";
 import type { Lead } from "@/lib/server/leadsStore";
 import type { PlaceDetails } from "@/lib/server/placesStore";
-import { GoogleRatingCard } from "./GoogleRatingCard";
 import { PRESENCE_STYLES } from "./placeStyles";
 
 type State =
@@ -205,8 +204,6 @@ function Details({ place }: { place: PlaceDetails }) {
           })}
         </div>
       )}
-
-      <GoogleRatingCard name={place.name} area={place.area} lat={place.lat} lon={place.lon} />
 
       <LinkList title="Website" urls={place.websites} />
       <LinkList title="Social links" urls={place.socials} />

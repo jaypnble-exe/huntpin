@@ -56,11 +56,9 @@ Google-specific sections below.
   checked in the last 30 days and opted-out leads. Never schedule it.
 - **Never scrape Instagram, Facebook or Google Maps** to find sellers, ratings
   or photos.
-- **Google ratings** are shown only through Google's own Maps Embed iframe
-  (`NEXT_PUBLIC_GOOGLE_MAPS_EMBED_KEY`, a separate browser key restricted to
-  the Maps Embed API and site URLs; free, unlimited per Google's pricing) or
-  via Maps URLs links. Do not fetch ratings/photos through the Places API
-  without the owner's approval (paid SKUs, no storage allowed).
+- **Google ratings/photos:** only via Maps URLs links ("Find on Google Maps";
+  no key, no billing). The owner declined anything that needs a Google billing
+  account (Maps Embed API, Places API ratings/photos), even if usage is free.
 - Zero cost remains a hard requirement: free tiers only, no paid services.
 
 ## Working principles

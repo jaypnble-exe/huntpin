@@ -101,24 +101,9 @@ automatically on the 5th of each month at 03:00 while you are logged in:
 Output goes to `logs\refresh.log`. Remove the task with
 `schtasks /Delete /TN "LeadRadar monthly places refresh" /F`.
 
-**Google rating in the details panel (optional, free).** The map's place
-panel can show Google's own place card (rating, reviews, "View larger map")
-using the Maps Embed API, which Google lists as free with no usage cap. The
-app only shows Google's iframe; it fetches and stores nothing from Google.
-
-1. In Google Cloud Console, use the same project (a billing account must be
-   attached, but Maps Embed usage is not charged) and enable **Maps Embed API**.
-2. Credentials → Create credentials → API key. Under **API restrictions**
-   choose *Restrict key* → **Maps Embed API** only. Under **Application
-   restrictions** choose *Websites* and add `http://localhost:3000/*` and
-   `http://localhost:3001/*` (add your real domain later).
-3. Put it in `.env.local` as `NEXT_PUBLIC_GOOGLE_MAPS_EMBED_KEY=...` and
-   restart `npm run dev`. This key is visible in the browser by design; the
-   restrictions are what keep it safe. Never use the server
-   `GOOGLE_MAPS_API_KEY` here.
-
-Without the key, "Find on Google Maps" still opens the business's listing by
-name (no key, no cost).
+**Google listing.** The place panel's "Find on Google Maps" searches Google Maps
+by business name and city (Maps URLs: no API key, no billing account, no
+cost), which usually opens their listing with rating, reviews and photos.
 
 **Licences and attribution.** Each record keeps its source datasets and
 licences: CDLA-Permissive-2.0 (Meta, Microsoft and others), Apache-2.0
