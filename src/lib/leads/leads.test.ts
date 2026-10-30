@@ -4,14 +4,31 @@ import { canDraftOutreach, parseLeadPatch } from "./leads";
 import {
   buildDraft,
   DEFAULT_OUTREACH_MESSAGE,
+  DEFAULT_TEMPLATES,
   FOLLOW_UP_TEMPLATES,
   defaultLanguage,
+  mergeTemplates,
   namePart,
   OUTREACH_TEMPLATES,
+  parseTemplates,
   whatsappHref,
 } from "./outreach";
 
 describe("parseLeadPatch", () => {
+  it("accepts deal stages and a deal value, rounded to halalas", () => {
+    expect(parseLeadPatch({ status: "proposal_sent", dealValue: 4500.555 })).toEqual({
+      ok: true,
+      patch: { lead_status: "proposal_sent", deal_value: 4500.56 },
+      markContacted: false,
+    });
+    expect(parseLeadPatch({ dealValue: null })).toMatchObject({ ok: true, patch: { deal_value: null } });
+    for (const bad of [-1, 10_000_000, Number.NaN, "5000", Infinity]) {
+      expect(parseLeadPatch({ dealValue: bad }).ok).toBe(false);
+    }
+    expect(canDraftOutreach("won")).toBe(false);
+    expect(canDraftOutreach("meeting")).toBe(true);
+  });
+
   it("maps browser fields to columns", () => {
     expect(
       parseLeadPatch({
@@ -151,9 +168,69 @@ describe("personalised drafts", () => {
     expect(buildDraft({ language: "ar", name: null, sentences: [], kind: "follow_up" })).toBe(FOLLOW_UP_TEMPLATES.ar);
   });
 
+  it("adds the portfolio link or an offer just before the closing question", () => {
+    const url = "https://pejay.is-a.dev";
+    const linked = buildDraft({ language: "en", name: "Basic Cafe", sentences: [], kind: "follow_up", portfolio: { mode: "link", url } }).split("\n\n");
+    expect(linked.at(-2)).toBe(`You can see some of my work here:
+${url}`);
+    expect(linked.at(-1)).toMatch(/^Would a quick chat/);
+
+    const offered = buildDraft({ language: "ar", name: null, sentences: [], portfolio: { mode: "offer", url } }).split("\n\n");
+    expect(offered.at(-2)).toBe("وإذا كان ذلك مفيداً، يسعدني مشاركة بعض نماذج أعمالي.");
+    expect(offered.join(" ")).not.toContain(url);
+
+    expect(buildDraft({ language: "en", name: null, sentences: [], portfolio: { mode: "none", url } })).toBe(OUTREACH_TEMPLATES.en.text);
+    expect(buildDraft({ language: "en", name: null, sentences: [], portfolio: { mode: "link", url: null } })).toBe(OUTREACH_TEMPLATES.en.text);
+  });
+
   it("keeps the template when there is nothing to personalise", () => {
     expect(buildDraft({ language: "ar", name: null, sentences: [] })).toBe(OUTREACH_TEMPLATES.ar.text);
     expect(buildDraft({ language: "ar", name: "سرايا عابدين", sentences: [] })).toMatch(/^مرحباً فريق سرايا عابدين! 👋/);
+  });
+});
+
+describe("category pitches and edited templates", () => {
+  it("replaces the general question with the category pitch in first messages only", () => {
+    const first = buildDraft({ language: "en", name: "Basic Cafe", sentences: [], category: "food" }).split("\n\n");
+    expect(first[2]).toBe(DEFAULT_TEMPLATES.en.pitches.food);
+    expect(first).toHaveLength(4);
+    expect(first.join(" ")).not.toContain("I was wondering");
+    const followUp = buildDraft({ language: "en", name: "Basic Cafe", sentences: [], kind: "follow_up", category: "food" });
+    expect(followUp).not.toContain(DEFAULT_TEMPLATES.en.pitches.food);
+    expect(buildDraft({ language: "ar", name: null, sentences: [], category: "health" })).toContain("للعيادات");
+  });
+
+  it("falls back to the general question when a pitch is emptied, and drops empty paragraphs", () => {
+    const templates = structuredClone(DEFAULT_TEMPLATES);
+    templates.en.pitches.food = "  ";
+    templates.en.first.intro = "";
+    const draft = buildDraft({ language: "en", name: null, sentences: [], category: "food", templates }).split("\n\n");
+    expect(draft).toEqual([templates.en.first.greeting, templates.en.first.question, templates.en.first.closing]);
+  });
+
+  it("inserts the name literally, even with special characters", () => {
+    expect(buildDraft({ language: "en", name: "A$&B", sentences: [] }).split("\n\n")[0]).toMatch(/^Hi A\$&B team!/);
+  });
+
+  it("validates edited templates strictly", () => {
+    expect(parseTemplates(structuredClone(DEFAULT_TEMPLATES))).toMatchObject({ ok: true });
+    const missingName = structuredClone(DEFAULT_TEMPLATES);
+    missingName.ar.first.greetingNamed = "مرحباً!";
+    expect(parseTemplates(missingName)).toMatchObject({ ok: false, error: expect.stringContaining("{name}") });
+    const tooLong = structuredClone(DEFAULT_TEMPLATES);
+    tooLong.en.pitches.retail = "x".repeat(1001);
+    expect(parseTemplates(tooLong).ok).toBe(false);
+    expect(parseTemplates({ ...structuredClone(DEFAULT_TEMPLATES), fr: {} }).ok).toBe(false);
+    expect(parseTemplates({ en: DEFAULT_TEMPLATES.en }).ok).toBe(false);
+  });
+
+  it("merges stored templates over the defaults field by field", () => {
+    const merged = mergeTemplates({ en: { first: { closing: "Shall we talk?", greetingNamed: "no placeholder" }, pitches: { food: 5 } } });
+    expect(merged.en.first.closing).toBe("Shall we talk?");
+    expect(merged.en.first.greetingNamed).toBe(DEFAULT_TEMPLATES.en.first.greetingNamed);
+    expect(merged.en.pitches.food).toBe(DEFAULT_TEMPLATES.en.pitches.food);
+    expect(merged.ar).toEqual(DEFAULT_TEMPLATES.ar);
+    expect(mergeTemplates("garbage")).toEqual(DEFAULT_TEMPLATES);
   });
 });
 

@@ -22,6 +22,7 @@ const RAW: OverturePlace = {
   websites: ["https://www.instagram.com/cafeone"],
   socials: ["https://www.facebook.com/1", "https://www.facebook.com/1"],
   phones: ["+966 12 000 0000"],
+  emails: [" Owner@Gmail.com ", "bad-email"],
   confidence: 0.8,
   operating_status: null,
   lon: 39.15,
@@ -43,6 +44,7 @@ describe("toPlaceRow", () => {
       websites: ["https://www.instagram.com/cafeone"],
       socials: ["https://www.facebook.com/1"],
       phones: ["+966 12 000 0000"],
+      emails: ["owner@gmail.com"],
       web_presence: "social_only",
       has_instagram: true,
       confidence: 0.8,
@@ -144,8 +146,8 @@ describe("applyChainsAndScores", () => {
       toPlaceRow({ ...RAW, id: "c3", name: "بيتزا هت | Pizza Hut" }, META),
     ] as PlaceRow[];
     const scored = applyChainsAndScores(rows);
-    // social_only 30 + phone 15 + instagram 10 + target category 15 + confidence 0.8 → 10
-    expect(scored[0]).toMatchObject({ chain_size: 1, lead_score: 80 });
+    // social_only 30 + phone 15 + email 5 + instagram 10 + target category 15 + confidence 0.8 → 10
+    expect(scored[0]).toMatchObject({ chain_size: 1, lead_score: 85 });
     expect(scored.slice(1).map((r) => [r.chain_size, r.lead_score])).toEqual([[3, 5], [3, 5], [3, 5]]);
   });
 });

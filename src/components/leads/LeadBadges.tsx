@@ -27,8 +27,13 @@ const STATUS_TONES: Record<LeadStatus, BadgeTone> = {
   contacted: "warning",
   follow_up: "warning",
   replied: "success",
+  meeting: "info",
+  proposal_sent: "pink",
+  won: "brand",
+  lost: "neutral",
   not_interested: "neutral",
   do_not_contact: "danger",
+  not_a_fit: "neutral",
 };
 
 export function LeadStatusBadge({ status }: { status: LeadStatus }) {

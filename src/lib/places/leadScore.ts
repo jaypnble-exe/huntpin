@@ -21,6 +21,8 @@ export interface ScoreInput {
   webPresence: WebPresence;
   hasInstagram: boolean;
   phoneCount: number;
+  /** Listed emails (optional for older callers). */
+  emailCount?: number;
   category: string | null;
   confidence: number | null;
   chainSize: number;
@@ -41,7 +43,7 @@ export interface ScorePart {
   points: number;
 }
 
-/** Explains a score as labelled parts. The score is their sum, 0 to 90. */
+/** Explains a score as labelled parts. The score is their sum, 0 to 95. */
 export function scoreParts(input: ScoreInput, targets: CategoryGroup[] = DEFAULT_TARGET_GROUPS): ScorePart[] {
   if (input.webPresence === "possibly_closed") return [{ label: "Possibly closed", points: 0 }];
   if (input.chainSize >= CHAIN_MIN_LOCATIONS) {
@@ -52,11 +54,13 @@ export function scoreParts(input: ScoreInput, targets: CategoryGroup[] = DEFAULT
   const presencePoints: Record<WebPresence, number> = {
     no_website_listed: 35,
     social_only: 30,
+    unknown: 15,
     website_listed: 10,
     possibly_closed: 0,
   };
   const presenceLabels: Record<WebPresence, string> = {
     no_website_listed: "No website listed",
+    unknown: "Website unknown (check Google Maps)",
     social_only: "Social media only",
     website_listed: "Has a website (upgrade lead)",
     possibly_closed: "Possibly closed",
@@ -64,6 +68,7 @@ export function scoreParts(input: ScoreInput, targets: CategoryGroup[] = DEFAULT
   parts.push({ label: presenceLabels[input.webPresence], points: presencePoints[input.webPresence] });
 
   if (input.phoneCount > 0) parts.push({ label: "Phone number listed", points: 15 });
+  if ((input.emailCount ?? 0) > 0) parts.push({ label: "Email listed", points: 5 });
   if (input.hasInstagram) parts.push({ label: "Active on Instagram", points: 10 });
 
   const targeted = input.category !== null && targets.some((g) => (CATEGORY_GROUPS[g].categories as readonly string[]).includes(input.category!));

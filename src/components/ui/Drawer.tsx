@@ -7,6 +7,7 @@ import { IconX } from "./icons";
 /**
  * Side panel on wide screens, bottom sheet on phones. Non-modal: the page
  * behind stays usable. Escape closes it; focus moves to the panel on open.
+ * With `dismissOnOutsideClick`, pressing anywhere outside the panel closes it.
  */
 export function Drawer({
   label,
@@ -14,6 +15,7 @@ export function Drawer({
   subtitle,
   onClose,
   position = "fixed",
+  dismissOnOutsideClick = false,
   className,
   children,
 }: {
@@ -23,20 +25,37 @@ export function Drawer({
   onClose: () => void;
   /** "absolute" positions inside a relative container (e.g. the map). */
   position?: "fixed" | "absolute";
+  dismissOnOutsideClick?: boolean;
   className?: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     ref.current?.focus();
   }, []);
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onCloseRef.current();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
+
+  useEffect(() => {
+    if (!dismissOnOutsideClick) return;
+    const onPointerDown = (event: PointerEvent) => {
+      // Only the main (left) button; ignore clicks inside the panel and on
+      // elements removed from the page meanwhile.
+      if (event.button !== 0) return;
+      const target = event.target as Node | null;
+      if (!target || !target.isConnected || ref.current?.contains(target)) return;
+      onCloseRef.current();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [dismissOnOutsideClick]);
 
   return (
     <aside

@@ -1,25 +1,38 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { authConfig, SESSION_COOKIE, verifySessionToken } from "@/lib/auth/session";
 
-// There is no authentication yet, so the app only answers on localhost.
-// Replace this with real auth before deploying to a public URL.
+// Without login set up (APP_PASSWORD_HASH + SESSION_SECRET), the app only
+// answers on localhost. With it, every page and API needs a session, and the
+// app also answers on the hosts in APP_ALLOWED_HOSTS (e.g. the PC's address on
+// the home network, for phone access).
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+// Reachable without a session.
+const PUBLIC_PATHS = new Set(["/login", "/api/auth/login", "/api/auth/logout"]);
 
 function hostnameOf(host: string): string {
   return host.startsWith("[") ? host.slice(0, host.indexOf("]") + 1) : host.split(":")[0];
 }
 
-function forbidden(message: string) {
-  return new NextResponse(message, { status: 403 });
+function forbidden(message: string, status = 403) {
+  return new NextResponse(message, { status });
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  const config = authConfig(process.env);
+  if (config.kind === "misconfigured") return forbidden(`Login is misconfigured: ${config.reason}`, 503);
+  const allowed = (host: string) => LOCAL_HOSTNAMES.has(host) || (config.kind === "on" && config.allowedHosts.has(host));
+
   // Check every host the request claims, including one set by a proxy.
   const hosts = [request.headers.get("host"), request.headers.get("x-forwarded-host")]
     .filter((host): host is string => host !== null)
     .flatMap((host) => host.split(",").map((part) => hostnameOf(part.trim().toLowerCase())));
-  if (hosts.length === 0 || hosts.some((host) => !LOCAL_HOSTNAMES.has(host))) {
-    return forbidden("This app is restricted to localhost until authentication is added.");
+  if (hosts.length === 0 || !hosts.every(allowed)) {
+    return forbidden(
+      config.kind === "on"
+        ? "This host is not in APP_ALLOWED_HOSTS."
+        : "This app is restricted to localhost until login is set up (see docs/SETUP.md).",
+    );
   }
 
   if (!SAFE_METHODS.has(request.method)) {
@@ -33,7 +46,7 @@ export function middleware(request: NextRequest) {
       } catch {
         originHost = null;
       }
-      if (originHost === null || !LOCAL_HOSTNAMES.has(originHost)) {
+      if (originHost === null || !allowed(originHost)) {
         return forbidden("Cross-site requests are not allowed.");
       }
     }
@@ -44,6 +57,19 @@ export function middleware(request: NextRequest) {
     const contentType = request.headers.get("content-type");
     if (contentType !== null && !contentType.toLowerCase().startsWith("application/json")) {
       return forbidden("Request bodies must be JSON.");
+    }
+  }
+
+  if (config.kind === "on" && !PUBLIC_PATHS.has(request.nextUrl.pathname)) {
+    const signedIn = await verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value, config.secret);
+    if (!signedIn) {
+      if (request.nextUrl.pathname.startsWith("/api/")) {
+        return NextResponse.json({ ok: false, message: "Sign in first." }, { status: 401 });
+      }
+      const login = request.nextUrl.clone();
+      login.pathname = "/login";
+      login.search = `?next=${encodeURIComponent(request.nextUrl.pathname + request.nextUrl.search)}`;
+      return NextResponse.redirect(login);
     }
   }
 

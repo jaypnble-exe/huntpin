@@ -10,6 +10,7 @@ import {
   Field,
   IconCheck,
   IconExternal,
+  IconMail,
   IconMapPin,
   IconPhone,
   IconTrash,
@@ -22,21 +23,29 @@ import {
 import { FOLLOW_UP_AFTER_DAYS, MAX_FOLLOW_UPS, wantsFollowUp } from "@/lib/leads/followUps";
 import {
   canDraftOutreach,
+  DEAL_CURRENCY,
+  isDealStage,
   LEAD_STATUS_LABELS,
   LEAD_STATUSES,
+  MAX_DEAL_VALUE,
   MAX_LABEL_LENGTH,
   MAX_NOTES_LENGTH,
   type LeadStatus,
 } from "@/lib/leads/leads";
-import { humanizeCategory } from "@/lib/places/categories";
-import { googleMapsSearchUrl, safeHref, telHref } from "@/lib/places/links";
-import { isInstagramUrl } from "@/lib/places/webPresence";
+import { categoryGroupOf, humanizeCategory } from "@/lib/places/categories";
+import { googleMapsSearchUrl, telHref } from "@/lib/places/links";
+import { SocialLinks } from "@/components/leads/SocialLinks";
+import { mailtoHref } from "@/lib/places/emails";
 import type { Lead } from "@/lib/server/leadsStore";
 import { OutreachDraft } from "./OutreachDraft";
 import { leadOpportunities, WebsiteCheck } from "./WebsiteCheck";
 
 function toDateInput(value: string | null): string {
   return value ? value.slice(0, 10) : "";
+}
+
+function toValueInput(value: number | null): string {
+  return value === null ? "" : String(value);
 }
 
 export function LeadEditor({
@@ -56,6 +65,7 @@ export function LeadEditor({
   const [firstContacted, setFirstContacted] = useState(toDateInput(lead.first_contacted_at));
   const [lastContacted, setLastContacted] = useState(toDateInput(lead.last_contacted_at));
   const [followUpOn, setFollowUpOn] = useState(lead.follow_up_on ?? "");
+  const [dealValue, setDealValue] = useState(toValueInput(lead.deal_value));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
@@ -64,6 +74,7 @@ export function LeadEditor({
     setFirstContacted(toDateInput(updated.first_contacted_at));
     setLastContacted(toDateInput(updated.last_contacted_at));
     setFollowUpOn(updated.follow_up_on ?? "");
+    setDealValue(toValueInput(updated.deal_value));
     onSaved(updated);
   }
 
@@ -97,6 +108,7 @@ export function LeadEditor({
         firstContactedOn: firstContacted || null,
         lastContactedOn: lastContacted || null,
         followUpOn: followUpOn || null,
+        dealValue: dealValue.trim() === "" ? null : Number(dealValue),
       },
       "Saved.",
     );
@@ -130,6 +142,7 @@ export function LeadEditor({
       label="Lead details"
       title={lead.label ?? place?.name ?? "Lead"}
       onClose={onClose}
+      dismissOnOutsideClick
       subtitle={
         <div className="flex flex-wrap items-center gap-1.5">
           {place && <ScorePill score={place.lead_score} />}
@@ -168,26 +181,17 @@ export function LeadEditor({
                   </a>
                 ) : null;
               })}
+              {(place.emails ?? []).map((email) => {
+                const href = mailtoHref(email);
+                return href ? (
+                  <a key={email} href={href} dir="ltr" title={email} className="inline-flex h-8 max-w-56 items-center gap-1.5 rounded-md border border-border-strong px-2.5 text-xs font-medium hover:bg-surface-muted">
+                    <IconMail />
+                    <span className="truncate">{email}</span>
+                  </a>
+                ) : null;
+              })}
             </div>
-            {links.length > 0 && (
-              <ul className="space-y-1 text-sm">
-                {links.map((url) => {
-                  const href = safeHref(url);
-                  return (
-                    <li key={url} className="flex items-center gap-2 break-all">
-                      {href ? (
-                        <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="text-info hover:underline">
-                          {url}
-                        </a>
-                      ) : (
-                        url
-                      )}
-                      {isInstagramUrl(url) && <InstagramBadge />}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            <SocialLinks urls={links} />
           </div>
         )}
 
@@ -224,6 +228,26 @@ export function LeadEditor({
                 <Input type="date" value={lastContacted} onChange={(e) => setLastContacted(e.target.value)} />
               </Field>
             </div>
+            {isDealStage(status) && (
+              <Field
+                label={`Deal value (${DEAL_CURRENCY})`}
+                hint={
+                  lead.closed_at && (status === "won" || status === "lost")
+                    ? `${status === "won" ? "Won" : "Lost"} on ${new Date(lead.closed_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}.`
+                    : "Expected or agreed project value. Shown on the Pipeline page."
+                }
+              >
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  max={MAX_DEAL_VALUE}
+                  step="any"
+                  value={dealValue}
+                  onChange={(e) => setDealValue(e.target.value)}
+                />
+              </Field>
+            )}
             {wantsFollowUp(status) && (
               <Field
                 label="Next follow-up"
@@ -266,6 +290,8 @@ export function LeadEditor({
           {canDraftOutreach(status) ? (
             <OutreachDraft
               phones={place?.phones ?? []}
+              emails={place?.emails ?? []}
+              category={categoryGroupOf(place?.basic_category ?? null)}
               name={label.trim() || place?.name || null}
               confirmedSentences={confirmedSentences}
               defaultKind={lead.first_contacted_at ? "follow_up" : "first"}

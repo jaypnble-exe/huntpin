@@ -7,8 +7,15 @@ export const LEAD_STATUSES = [
   "contacted",
   "replied",
   "follow_up",
+  // Deal stages after a reply.
+  "meeting",
+  "proposal_sent",
+  "won",
+  "lost",
   "not_interested",
   "do_not_contact",
+  // Not a prospect (e.g. already has a good website). Hidden from the map.
+  "not_a_fit",
 ] as const;
 
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
@@ -19,9 +26,26 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   contacted: "Contacted",
   replied: "Replied",
   follow_up: "Follow up",
+  meeting: "Meeting",
+  proposal_sent: "Proposal sent",
+  won: "Won",
+  lost: "Lost",
   not_interested: "Not interested",
   do_not_contact: "Do not contact",
+  not_a_fit: "Not a fit",
 };
+
+/** Pipeline columns: a reply, then the deal stages. */
+export const DEAL_STAGES = ["replied", "meeting", "proposal_sent", "won", "lost"] as const satisfies readonly LeadStatus[];
+export type DealStage = (typeof DEAL_STAGES)[number];
+
+export function isDealStage(status: LeadStatus): status is DealStage {
+  return (DEAL_STAGES as readonly string[]).includes(status);
+}
+
+/** Deal values are in this currency. */
+export const DEAL_CURRENCY = "SAR";
+export const MAX_DEAL_VALUE = 9_999_999;
 
 export const MAX_LABEL_LENGTH = 120;
 export const MAX_NOTES_LENGTH = 2000;
@@ -30,9 +54,9 @@ export function isLeadStatus(value: unknown): value is LeadStatus {
   return typeof value === "string" && (LEAD_STATUSES as readonly string[]).includes(value);
 }
 
-/** Outreach drafts are never offered for leads that declined or opted out. */
+/** Outreach drafts are never offered for leads that declined, opted out, or whose deal is closed. */
 export function canDraftOutreach(status: LeadStatus): boolean {
-  return status !== "not_interested" && status !== "do_not_contact";
+  return !(["not_interested", "do_not_contact", "not_a_fit", "won", "lost"] as LeadStatus[]).includes(status);
 }
 
 export interface LeadPatch {
@@ -44,6 +68,7 @@ export interface LeadPatch {
   confirmed_opportunities?: string[];
   follow_up_on?: string | null;
   follow_up_count?: number;
+  deal_value?: number | null;
 }
 
 export type ParsedLeadPatch =
@@ -59,6 +84,7 @@ const ALLOWED_KEYS = new Set([
   "markContacted",
   "confirmedOpportunities",
   "followUpOn",
+  "dealValue",
 ]);
 const OPPORTUNITY_KEY = /^[a-z_]{1,40}$/;
 export const MAX_CONFIRMED_OPPORTUNITIES = 20;
@@ -130,6 +156,14 @@ export function parseLeadPatch(body: unknown): ParsedLeadPatch {
       return { ok: false, error: "confirmedOpportunities must be a short list of opportunity keys" };
     }
     patch.confirmed_opportunities = [...new Set(keys as string[])];
+  }
+
+  if ("dealValue" in record) {
+    const value = record.dealValue;
+    if (value !== null && (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > MAX_DEAL_VALUE)) {
+      return { ok: false, error: `dealValue must be a number from 0 to ${MAX_DEAL_VALUE}, or null` };
+    }
+    patch.deal_value = value === null ? null : Math.round(value * 100) / 100;
   }
 
   if ("markContacted" in record && typeof record.markContacted !== "boolean") {

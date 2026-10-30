@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BBox } from "../places/areas";
+import { normalizeEmails } from "../places/emails";
 import { computeChainSizes, scorePlace } from "../places/leadScore";
 import type { CategoryGroup } from "../places/categories";
 import { classifyWebPresence, hasInstagram, type WebPresence } from "../places/webPresence";
@@ -50,7 +51,7 @@ export function overturePlacesQuery(release: string, bbox: BBox): string {
   const [west, south, east, north] = bbox;
   return `
     SELECT id, names.primary AS name, basic_category, taxonomy.primary AS taxonomy_primary,
-           websites, socials, phones, confidence, operating_status,
+           websites, socials, phones, emails, confidence, operating_status,
            (bbox.xmin + bbox.xmax) / 2 AS lon, (bbox.ymin + bbox.ymax) / 2 AS lat,
            list_transform(sources, s -> s.dataset) AS source_datasets,
            list_transform(sources, s -> s.license) AS source_licenses
@@ -67,6 +68,7 @@ export interface OverturePlace {
   websites: unknown;
   socials: unknown;
   phones: unknown;
+  emails?: unknown;
   confidence: unknown;
   operating_status: unknown;
   lon: unknown;
@@ -86,6 +88,7 @@ export interface PlaceRow {
   websites: string[];
   socials: string[];
   phones: string[];
+  emails: string[];
   web_presence: WebPresence;
   has_instagram: boolean;
   confidence: number | null;
@@ -137,6 +140,7 @@ export function toPlaceRow(
     websites,
     socials,
     phones: textList(raw.phones),
+    emails: normalizeEmails(raw.emails),
     web_presence: classifyWebPresence({ websites, socials, operatingStatus }),
     has_instagram: hasInstagram({ websites, socials }),
     confidence,
@@ -161,6 +165,7 @@ export function applyChainsAndScores(rows: PlaceRow[], targets?: CategoryGroup[]
         webPresence: row.web_presence,
         hasInstagram: row.has_instagram,
         phoneCount: row.phones.length,
+        emailCount: row.emails.length,
         category: row.basic_category,
         confidence: row.confidence,
         chainSize: chain_size,

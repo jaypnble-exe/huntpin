@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { IconRadar } from "@/components/ui";
+import { authConfig } from "@/lib/auth/session";
+import { LogoutButton } from "./LogoutButton";
 import { NavLinks } from "./NavLinks";
 import "./globals.css";
 
@@ -25,6 +27,7 @@ export default function RootLayout({
             LeadRadar
           </Link>
           <NavLinks />
+          {authConfig(process.env).kind === "on" && <LogoutButton />}
         </header>
         {children}
       </body>

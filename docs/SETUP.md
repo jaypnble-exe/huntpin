@@ -61,8 +61,9 @@ same billing account.
 2. **Fill in keys.** Put the project URL, publishable key and **secret** key
    (`sb_secret_...`) in `.env.local`. The secret key bypasses all access rules:
    never share it, commit it, or give it a `NEXT_PUBLIC_` prefix.
-3. **Run the migration.** Open the SQL Editor, paste
-   `supabase/migrations/001_initial.sql` and run it once. It creates the
+3. **Run the migrations.** Open the SQL Editor and run each file in
+   `supabase/migrations/` once, in order (001 to 010). The first,
+   `001_initial.sql`, creates the
    tables `usage_events`, `app_settings` and `leads` plus two counter
    functions. It drops nothing.
 4. **Access model.** RLS is on for every table, with no policies, and anon and
@@ -72,6 +73,46 @@ same billing account.
 The usage counter lives in Supabase. The limit check and the request record
 happen in one database function, so simultaneous searches cannot both pass. If
 Supabase is unreachable, the app refuses searches.
+
+## Outreach queue, templates and pipeline
+
+- **Outreach** (`/queue`): one business at a time with the draft ready. You
+  open WhatsApp or your mail app, send it yourself, then press **Sent → next**.
+  That saves the lead, marks it contacted and sets the follow-up reminder. The
+  app never sends anything. `DAILY_OUTREACH_LIMIT` (default 20, max 50) caps
+  first messages per day; follow-ups don't count. The queue leaves out chains,
+  opted-out leads, and any place sharing a phone number with a lead already
+  contacted.
+- **Templates** (`/templates`): edit every paragraph of the drafts, in English
+  and Arabic, plus a pitch per category (e.g. QR menus for restaurants). They
+  are stored in `app_settings`; no migration is needed.
+- **Pipeline** (`/pipeline`): leads that replied, then Meeting → Proposal sent
+  → Won / Lost, with deal values in SAR. Needs
+  `supabase/migrations/010_deals.sql`.
+
+## Phone access (login)
+
+Without login settings the app only answers on `localhost`. To use it from
+your phone on the same Wi-Fi:
+
+1. Run `npm run auth:setup`, choose a password (10+ characters), and paste
+   the three printed lines into `.env.local`: `APP_PASSWORD_HASH`,
+   `SESSION_SECRET`, `APP_ALLOWED_HOSTS` (your PC's home-network IP).
+2. Restart `npm run dev`. Every page now asks for the password, on the PC too.
+   A session lasts 30 days; **Log out** is in the header. Changing
+   `SESSION_SECRET` signs out every device.
+3. On the phone, open `http://<PC IP>:3000`. The first time, Windows may ask
+   whether Node.js may use the network: allow **private** networks only.
+
+The PC must be on and running the app. This is plain http on your own Wi-Fi,
+so don't do this on public Wi-Fi. The router may also give the PC a new IP;
+rerun the setup (or reserve the IP in the router) if the phone stops
+connecting.
+
+Hosting it online instead: Vercel's free Hobby plan is for **non-commercial use
+only**, and a tool used to win clients counts as commercial, so it isn't an
+option. Choose a host whose free plan allows commercial use, and serve it over
+https only.
 
 ## Open places data (Overture Maps)
 
@@ -92,6 +133,13 @@ the Foursquare Places Portal in `.env.local`, run migration
 `npm run import:foursquare -- --area jeddah` (add `--dry-run` to preview). It
 adds open business places updated since 2024 that are not already on the map,
 and Instagram handles for matching places. Takes about a minute for Jeddah.
+
+**Website unknown vs no website listed.** Foursquare rarely records websites,
+so its places with nothing listed are labelled "Website unknown" (lower
+score). "No website listed" is kept for Overture, which is more reliable. If
+Google Maps shows a business already has a site, use "Has a website" in the
+place panel to hide it. After changing `LEAD_TARGET_CATEGORIES` or running a
+migration, recompute scores with `npm run rescore:places -- --area jeddah`.
 
 **Monthly refresh.** `npm run refresh:places` imports the newest Overture
 release and Foursquare for every area, removes places that disappeared (never

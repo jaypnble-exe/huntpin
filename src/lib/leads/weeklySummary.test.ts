@@ -45,7 +45,7 @@ describe("computeWeeklySummary", () => {
       from: "2026-10-24",
       to: "2026-10-30",
       thisWeek: { saved: 5, firstContacts: 1, followUpsSent: 1, replies: 1, declined: 1 },
-      pipeline: { new: 2, reviewed: 0, contacted: 1, replied: 1, follow_up: 1, not_interested: 0, do_not_contact: 1 },
+      pipeline: { new: 2, reviewed: 0, contacted: 1, replied: 1, follow_up: 1, meeting: 0, proposal_sent: 0, won: 0, lost: 0, not_interested: 0, do_not_contact: 1, not_a_fit: 0 },
       followUps: { dueNow: 1, nextSevenDays: 1 },
       replyRate: 0.25,
       totalLeads: 6,

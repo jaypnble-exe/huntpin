@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyWebPresence, hasInstagram, isSocialUrl } from "./webPresence";
+import { classifyWebPresence, hasInstagram, isSocialUrl, socialHandle, socialPlatform } from "./webPresence";
 
 const NONE = { websites: [], socials: [], operatingStatus: null };
 
@@ -59,5 +59,27 @@ describe("hasInstagram", () => {
     expect(hasInstagram({ websites: ["https://instagram.com/a"], socials: [] })).toBe(true);
     expect(hasInstagram({ websites: [], socials: ["https://www.instagram.com/b"] })).toBe(true);
     expect(hasInstagram({ websites: ["https://cafe.sa"], socials: ["https://facebook.com/1"] })).toBe(false);
+  });
+});
+
+describe("socialPlatform", () => {
+  it.each([
+    ["https://www.instagram.com/mykonos.sa", "instagram", "mykonos.sa"],
+    ["https://instagram.com/sarayaabdeen_res?igshid=hb5", "instagram", "sarayaabdeen_res"],
+    ["https://www.facebook.com/2054682361308710", "facebook", "2054682361308710"],
+    ["https://m.facebook.com/profile.php?id=1", "facebook", null],
+    ["https://x.com/brand", "x", "brand"],
+    ["https://twitter.com/brand", "x", "brand"],
+    ["https://www.tiktok.com/@cafe", "tiktok", "cafe"],
+    ["https://wa.me/966500000000", "whatsapp", "966500000000"],
+    ["linktr.ee/cafe", "linktree", "cafe"],
+  ])("%s is %s", (url, platform, handle) => {
+    expect(socialPlatform(url)).toBe(platform);
+    expect(socialHandle(url)).toBe(handle);
+  });
+
+  it("returns null for ordinary websites and lookalikes", () => {
+    expect(socialPlatform("https://basiccafe.sa")).toBeNull();
+    expect(socialPlatform("https://instagram.com.evil.example")).toBeNull();
   });
 });

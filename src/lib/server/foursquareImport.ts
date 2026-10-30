@@ -1,5 +1,6 @@
 import "server-only";
 import type { BBox } from "../places/areas";
+import { normalizeEmails } from "../places/emails";
 import { classifyWebPresence, hasInstagram } from "../places/webPresence";
 import type { PlaceRow } from "./placesImport";
 
@@ -81,7 +82,7 @@ export function foursquareQuery(bbox: BBox): string {
   if (bbox.some((n) => !Number.isFinite(n))) throw new Error("invalid bbox");
   const [west, south, east, north] = bbox;
   return `
-    SELECT fsq_place_id, name, latitude, longitude, date_refreshed, date_closed, tel, website,
+    SELECT fsq_place_id, name, latitude, longitude, date_refreshed, date_closed, tel, email, website,
            facebook_id, instagram, twitter, fsq_category_labels
     FROM ${FSQ_TABLE}
     WHERE longitude BETWEEN ${west} AND ${east} AND latitude BETWEEN ${south} AND ${north}
@@ -96,6 +97,7 @@ export interface FoursquarePlace {
   date_refreshed: unknown;
   date_closed: unknown;
   tel: unknown;
+  email?: unknown;
   website: unknown;
   facebook_id: unknown;
   instagram: unknown;
@@ -167,7 +169,9 @@ export function toFoursquarePlaceRow(raw: FoursquarePlace, { area, release, refr
     websites,
     socials,
     phones: tel ? [tel] : [],
-    web_presence: classifyWebPresence({ websites, socials, operatingStatus: null }),
+    emails: normalizeEmails(raw.email),
+    // Foursquare rarely records websites, so "nothing listed" means unknown.
+    web_presence: websites.length || socials.length ? classifyWebPresence({ websites, socials, operatingStatus: null }) : "unknown",
     has_instagram: hasInstagram({ websites, socials }),
     confidence: null,
     operating_status: null,

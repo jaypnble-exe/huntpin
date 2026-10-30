@@ -20,7 +20,7 @@ import {
   cn,
 } from "@/components/ui";
 import { isDue, localDate, wantsFollowUp } from "@/lib/leads/followUps";
-import { LEAD_STATUS_LABELS, LEAD_STATUSES } from "@/lib/leads/leads";
+import { isDealStage, LEAD_STATUS_LABELS, LEAD_STATUSES } from "@/lib/leads/leads";
 import { CATEGORY_GROUPS, humanizeCategory, isCategoryGroup } from "@/lib/places/categories";
 import { reviewBonus } from "@/lib/places/leadScore";
 import { WEB_PRESENCE } from "@/lib/places/webPresence";
@@ -96,7 +96,8 @@ export function LeadsDashboard() {
 
   const dueCount = leads.filter((lead) => isDue(lead.follow_up_on, lead.lead_status, today)).length;
   const contactedCount = leads.filter((lead) => lead.first_contacted_at).length;
-  const repliedCount = leads.filter((lead) => lead.lead_status === "replied").length;
+  // Leads at a later deal stage replied too.
+  const repliedCount = leads.filter((lead) => isDealStage(lead.lead_status)).length;
   const selected = leads.find((lead) => lead.id === selectedId) ?? null;
   const select = (id: string | null) => router.replace(id ? `/leads?lead=${id}` : "/leads", { scroll: false });
   const updateLead = (lead: Lead) => setLeads((all) => all.map((l) => (l.id === lead.id ? lead : l)));
@@ -109,6 +110,9 @@ export function LeadsDashboard() {
         description="Businesses you saved from the map. Track status, contact dates and follow-ups here."
         actions={
           <>
+            <ButtonLink href="/queue" variant="primary">
+              Start outreach
+            </ButtonLink>
             <BatchReview leads={sorted} onUpdated={updateLead} />
             <a href={`/api/leads/export?${query}`} download className={buttonClasses({ variant: "secondary" })}>
               <IconDownload />

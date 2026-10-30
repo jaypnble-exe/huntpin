@@ -15,19 +15,24 @@ export interface PlaceFilters {
   saved: SavedFilter;
   /** Hide places whose name appears at 3+ locations (chains). */
   hideChains: boolean;
+  source: SourceFilter;
 }
+
+export const SOURCE_FILTERS = ["all", "overture", "foursquare"] as const;
+export type SourceFilter = (typeof SOURCE_FILTERS)[number];
 
 export const SAVED_FILTERS = ["all", "hide", "only"] as const;
 export type SavedFilter = (typeof SAVED_FILTERS)[number];
 
 export const DEFAULT_FILTERS: PlaceFilters = {
-  presence: ["social_only", "no_website_listed"],
+  presence: ["social_only", "no_website_listed", "unknown"],
   minConfidence: 0.5,
   category: null,
   instagramOnly: false,
   nameQuery: "",
   saved: "all",
   hideChains: true,
+  source: "all",
 };
 
 export const CONFIDENCE_OPTIONS = [0, 0.5, 0.7, 0.9] as const;
@@ -42,6 +47,7 @@ export function toSearchParams(bbox: BBox, filters: PlaceFilters): URLSearchPara
   if (filters.instagramOnly) params.set("instagram", "1");
   if (filters.saved !== "all") params.set("saved", filters.saved);
   if (!filters.hideChains) params.set("chains", "show");
+  if (filters.source !== "all") params.set("source", filters.source);
   const name = filters.nameQuery.trim();
   if (name) params.set("q", name);
   return params;
@@ -77,6 +83,11 @@ export function parsePlaceQuery(params: URLSearchParams): ParsedPlaceQuery {
     return { ok: false, error: "saved must be all, hide or only" };
   }
 
+  const source = params.get("source") ?? "all";
+  if (!(SOURCE_FILTERS as readonly string[]).includes(source)) {
+    return { ok: false, error: "source must be all, overture or foursquare" };
+  }
+
   const nameQuery = (params.get("q") ?? "").trim();
   if (nameQuery.length > MAX_NAME_QUERY_LENGTH || /[\u0000-\u001f\u007f]/.test(nameQuery)) {
     return { ok: false, error: `q must be at most ${MAX_NAME_QUERY_LENGTH} printable characters` };
@@ -93,6 +104,7 @@ export function parsePlaceQuery(params: URLSearchParams): ParsedPlaceQuery {
       nameQuery,
       saved: saved as SavedFilter,
       hideChains: params.get("chains") !== "show",
+      source: source as SourceFilter,
     },
   };
 }

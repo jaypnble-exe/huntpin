@@ -29,6 +29,11 @@ describe("scorePlace", () => {
     expect(website).toBeGreaterThan(0);
   });
 
+  it("scores an unknown website (Foursquare) well below no website listed", () => {
+    expect(scorePlace({ ...BASE, webPresence: "unknown" })).toBe(70);
+    expect(scoreParts({ ...BASE, webPresence: "unknown" })[0]).toEqual({ label: "Website unknown (check Google Maps)", points: 15 });
+  });
+
   it("drops chains and closed places to the bottom", () => {
     expect(scorePlace({ ...BASE, chainSize: 3 })).toBe(5);
     expect(scorePlace({ ...BASE, webPresence: "possibly_closed" })).toBe(0);
@@ -47,6 +52,11 @@ describe("scorePlace", () => {
     expect(scorePlace({ ...fsq, refreshedOn: "2026-03-01" })).toBe(85);
     expect(scorePlace({ ...fsq, refreshedOn: "2025-03-01" })).toBe(80);
     expect(scorePlace({ ...fsq, refreshedOn: "2023-03-01" })).toBe(75);
+  });
+
+  it("adds a little for a listed email", () => {
+    expect(scorePlace({ ...BASE, emailCount: 1 })).toBe(95);
+    expect(scoreParts({ ...BASE, emailCount: 2 }).map((p) => p.label)).toContain("Email listed");
   });
 
   it("caps the review bonus", () => {

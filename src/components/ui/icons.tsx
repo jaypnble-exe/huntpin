@@ -109,3 +109,9 @@ export const IconRadar = (p: P) => (
     <circle cx="12" cy="12" r="1" fill="currentColor" />
   </Icon>
 );
+export const IconMail = (p: P) => (
+  <Icon {...p}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m3 7 9 6 9-6" />
+  </Icon>
+);

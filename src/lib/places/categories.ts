@@ -101,3 +101,12 @@ export function humanizeCategory(category: string | null): string {
   const text = category.replace(/_/g, " ");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
+
+/** The filter group a `basic_category` belongs to, if any. */
+export function categoryGroupOf(category: string | null): CategoryGroup | null {
+  if (!category) return null;
+  for (const [key, group] of Object.entries(CATEGORY_GROUPS)) {
+    if ((group.categories as readonly string[]).includes(category)) return key as CategoryGroup;
+  }
+  return null;
+}

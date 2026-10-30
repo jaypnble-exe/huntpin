@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createLeadFromPlace, isValidLeadId, listLeads, updateLead } from "./leadsStore";
+import { createLeadFromPlace, isValidLeadId, listLeads, markPlaceNotAFit, updateLead } from "./leadsStore";
 import { createSupabaseAdmin } from "./supabase";
 
 const LEAD_ID = "3f1c7a52-8f0e-4b8a-9d55-0c2a1f6e4b10";
@@ -130,6 +130,7 @@ describe("listLeads", () => {
     expect(plain.get("lead_status")).toBe("in.(new)");
     expect(joined.get("select")).toContain("place:places!inner(");
     expect(joined.get("place.web_presence")).toBe("in.(social_only)");
+    expect(joined.get("lead_status")).toBe("neq.not_a_fit");
     expect(joined.get("place.basic_category")).toContain("restaurant");
     expect(joined.get("order")).toBe("updated_at.desc");
   });
@@ -139,5 +140,23 @@ describe("isValidLeadId", () => {
   it("accepts UUIDs only", () => {
     expect(isValidLeadId(LEAD_ID)).toBe(true);
     expect(isValidLeadId("1; drop table")).toBe(false);
+  });
+});
+
+describe("markPlaceNotAFit", () => {
+  it("saves the place, sets Not a fit, clears reminders and records the website", async () => {
+    const { supabase, calls } = setup(({ method, url }) => {
+      if (url.pathname.endsWith("/places")) return { body: { id: "place-1", name: "Basic Cafe", basic_category: "cafe", area: "Jeddah" } };
+      if (method === "POST") return { status: 201, body: { id: LEAD_ID } };
+      if (method === "PATCH") return { body: [] };
+      return { body: { ...LEAD, operator_notes: "Owner is Ali" } };
+    });
+    await markPlaceNotAFit(supabase, "place-1", "https://basiccafe.sa/");
+    expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({
+      lead_status: "not_a_fit",
+      follow_up_on: null,
+      operator_notes: "Owner is Ali\nHas a website (checked on Google Maps).",
+      website_url: "https://basiccafe.sa/",
+    });
   });
 });

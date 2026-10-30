@@ -84,6 +84,8 @@ export function LeadMap({ area, data, selectedId, onBoundsChange, onSelect }: Le
               ["get", "presence"],
               "no_website_listed",
               PRESENCE_STYLES.no_website_listed.color,
+              "unknown",
+              PRESENCE_STYLES.unknown.color,
               "social_only",
               PRESENCE_STYLES.social_only.color,
               "website_listed",

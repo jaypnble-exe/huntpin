@@ -27,6 +27,7 @@ import {
   toSearchParams,
   type PlaceFilters,
   type SavedFilter,
+  type SourceFilter,
 } from "@/lib/places/filters";
 import { WEB_PRESENCE, type WebPresence } from "@/lib/places/webPresence";
 import type { PlaceFeatureCollection } from "@/lib/server/placesStore";
@@ -39,6 +40,11 @@ const SAVED_OPTIONS: { value: SavedFilter; label: string }[] = [
   { value: "all", label: "Show" },
   { value: "hide", label: "Hide" },
   { value: "only", label: "Only saved" },
+];
+const SOURCE_OPTIONS: { value: SourceFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "overture", label: "Overture" },
+  { value: "foursquare", label: "Foursquare" },
 ];
 const FETCH_DEBOUNCE_MS = 300;
 
@@ -72,6 +78,7 @@ function activeFilterCount(filters: PlaceFilters): number {
     filters.instagramOnly !== d.instagramOnly,
     filters.saved !== d.saved,
     filters.hideChains !== d.hideChains,
+    filters.source !== d.source,
   ].filter(Boolean).length;
 }
 
@@ -277,6 +284,21 @@ export function PlacesExplorer() {
                 value={filters.saved}
                 onChange={(saved) => setFilters((f) => ({ ...f, saved }))}
               />
+            </div>
+
+            <div>
+              <p className="mb-1 text-xs font-medium text-muted">Data source</p>
+              <SegmentedControl
+                label="Data source"
+                size="sm"
+                options={SOURCE_OPTIONS}
+                value={filters.source}
+                onChange={(source) => setFilters((f) => ({ ...f, source }))}
+              />
+              <p className="mt-1 text-xs text-muted">
+                Overture mostly mirrors Facebook pages, so its website info is more reliable. Foursquare adds many more shops
+                but rarely records websites.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

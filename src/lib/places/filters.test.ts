@@ -14,6 +14,7 @@ describe("place filters", () => {
       nameQuery: "قهوة",
       saved: "hide" as const,
       hideChains: false,
+      source: "foursquare" as const,
     };
     const parsed = parsePlaceQuery(toSearchParams(JEDDAH_VIEW, filters));
     expect(parsed).toEqual({ ok: true, bbox: JEDDAH_VIEW, filters });
@@ -32,6 +33,7 @@ describe("place filters", () => {
     [{ bbox: JEDDAH_VIEW.join(","), minConfidence: "2" }, /minConfidence/],
     [{ bbox: JEDDAH_VIEW.join(","), category: "weapons" }, /category/],
     [{ bbox: JEDDAH_VIEW.join(","), saved: "maybe" }, /saved/],
+    [{ bbox: JEDDAH_VIEW.join(","), source: "google" }, /source/],
     [{ bbox: JEDDAH_VIEW.join(","), q: "x".repeat(61) }, /q must/],
     [{ bbox: JEDDAH_VIEW.join(","), q: "a\u0000b" }, /q must/],
   ])("rejects %o", (params, error) => {

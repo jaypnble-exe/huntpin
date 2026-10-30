@@ -15,6 +15,7 @@ export interface LeadPlace {
   web_presence: WebPresence;
   has_instagram: boolean;
   phones: string[];
+  emails: string[];
   websites: string[];
   socials: string[];
   lat: number;
@@ -46,6 +47,11 @@ export interface Lead {
   confirmed_opportunities: string[];
   follow_up_on: string | null;
   follow_up_count: number;
+  /** Expected or agreed project value (DEAL_CURRENCY), entered by the operator. */
+  deal_value: number | null;
+  status_changed_at: string;
+  /** When the deal was won or lost. */
+  closed_at: string | null;
   place: LeadPlace | null;
 }
 
@@ -59,9 +65,9 @@ export interface LeadListFilters {
 
 const LEAD_COLUMNS =
   "id,label,operator_notes,lead_status,first_contacted_at,last_contacted_at,created_at,updated_at,overture_place_id," +
-  "website_url,website_status,website_http_status,website_final_url,website_error_category,website_signals,website_checked_at,confirmed_opportunities,follow_up_on,follow_up_count";
-const PLACE_COLUMNS =
-  "name,basic_category,web_presence,has_instagram,phones,websites,socials,lat,lon,area,source_datasets,source_licenses,lead_score,chain_size";
+  "website_url,website_status,website_http_status,website_final_url,website_error_category,website_signals,website_checked_at,confirmed_opportunities,follow_up_on,follow_up_count,deal_value,status_changed_at,closed_at";
+export const PLACE_COLUMNS =
+  "name,basic_category,web_presence,has_instagram,phones,emails,websites,socials,lat,lon,area,source_datasets,source_licenses,lead_score,chain_size";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -78,6 +84,8 @@ export async function listLeads(supabase: SupabaseClient, filters: LeadListFilte
     .from("leads")
     .select(`${LEAD_COLUMNS},place:places${filtersOnPlace ? "!inner" : ""}(${PLACE_COLUMNS})`);
   if (filters.statuses.length > 0) query = query.in("lead_status", filters.statuses);
+  // Not-a-fit places (already have a website) are only listed when asked for.
+  else if (!filters.due) query = query.neq("lead_status", "not_a_fit");
   if (filters.presence.length > 0) query = query.in("place.web_presence", filters.presence);
   if (filters.category) query = query.in("place.basic_category", [...CATEGORY_GROUPS[filters.category].categories]);
   if (filters.due) {
@@ -225,4 +233,29 @@ export async function deleteLead(supabase: SupabaseClient, id: string): Promise<
   const { data, error } = await supabase.from("leads").delete().eq("id", id).select("id");
   if (error) throw new Error("lead_delete_failed");
   return Boolean(data && data.length > 0);
+}
+
+export const NOT_A_FIT_NOTE = "Has a website (checked on Google Maps).";
+
+/**
+ * Marks a place as not a prospect because it already has a website: saves it
+ * as a lead (or reuses the existing one) with status "not_a_fit", which hides
+ * it from the map, stops reminders and drafts, and records the URL if given.
+ */
+export async function markPlaceNotAFit(
+  supabase: SupabaseClient,
+  placeId: string,
+  websiteUrl: string | null,
+): Promise<Lead> {
+  const { lead } = await createLeadFromPlace(supabase, placeId);
+  const note = lead.operator_notes?.includes(NOT_A_FIT_NOTE)
+    ? lead.operator_notes
+    : [lead.operator_notes, NOT_A_FIT_NOTE].filter(Boolean).join("\n").slice(0, 2000);
+  const update: Record<string, unknown> = { lead_status: "not_a_fit", follow_up_on: null, operator_notes: note };
+  if (websiteUrl) update.website_url = websiteUrl;
+  const { error } = await supabase.from("leads").update(update).eq("id", lead.id);
+  if (error) throw new Error("lead_update_failed");
+  const updated = await getLead(supabase, lead.id);
+  if (!updated) throw new NotFoundError("lead_not_found");
+  return updated;
 }

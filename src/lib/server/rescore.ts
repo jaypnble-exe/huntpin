@@ -13,6 +13,7 @@ interface ScoreRow {
   web_presence: WebPresence;
   has_instagram: boolean;
   phones: string[];
+  emails: string[];
   basic_category: string | null;
   confidence: number | null;
   refreshed_on: string | null;
@@ -33,7 +34,7 @@ export async function rescoreArea(
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await supabase
       .from("places")
-      .select("id,name,web_presence,has_instagram,phones,basic_category,confidence,refreshed_on")
+      .select("id,name,web_presence,has_instagram,phones,emails,basic_category,confidence,refreshed_on")
       .eq("area", area)
       .order("id")
       .range(from, from + PAGE_SIZE - 1);
@@ -51,6 +52,7 @@ export async function rescoreArea(
         webPresence: row.web_presence,
         hasInstagram: row.has_instagram,
         phoneCount: row.phones.length,
+        emailCount: row.emails?.length ?? 0,
         category: row.basic_category,
         confidence: row.confidence,
         chainSize: chainSizes[i],

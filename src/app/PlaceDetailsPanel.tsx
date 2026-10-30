@@ -10,14 +10,18 @@ import {
   Drawer,
   ExternalButtonLink,
   IconExternal,
+  IconGlobe,
+  IconMail,
+  Input,
   IconPhone,
   IconStar,
   InlineMessage,
   Spinner,
 } from "@/components/ui";
 import { humanizeCategory } from "@/lib/places/categories";
-import { googleMapsCoordinatesUrl, googleMapsSearchUrl, safeHref, telHref } from "@/lib/places/links";
-import { isInstagramUrl } from "@/lib/places/webPresence";
+import { googleMapsCoordinatesUrl, googleMapsSearchUrl, telHref } from "@/lib/places/links";
+import { SocialLinks } from "@/components/leads/SocialLinks";
+import { mailtoHref } from "@/lib/places/emails";
 import type { Lead } from "@/lib/server/leadsStore";
 import type { PlaceDetails } from "@/lib/server/placesStore";
 import { PRESENCE_STYLES } from "./placeStyles";
@@ -27,31 +31,6 @@ type State =
   | { kind: "error"; message: string }
   | { kind: "loaded"; place: PlaceDetails };
 
-function LinkList({ title, urls }: { title: string; urls: string[] }) {
-  if (urls.length === 0) return null;
-  return (
-    <div>
-      <h3 className="text-xs font-medium text-muted">{title}</h3>
-      <ul className="mt-1 space-y-1 text-sm">
-        {urls.map((url) => {
-          const href = safeHref(url);
-          return (
-            <li key={url} className="flex items-center gap-2 break-all">
-              {href ? (
-                <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="text-info hover:underline">
-                  {url}
-                </a>
-              ) : (
-                url
-              )}
-              {isInstagramUrl(url) && <InstagramBadge />}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
 
 export function PlaceDetailsPanel({
   id,
@@ -120,6 +99,10 @@ type LeadState =
 
 function LeadSave({ placeId, onSaved }: { placeId: string; onSaved?: () => void }) {
   const [state, setState] = useState<LeadState>({ kind: "loading" });
+  const [hideOpen, setHideOpen] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [hiding, setHiding] = useState(false);
+  const [hideError, setHideError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -154,8 +137,43 @@ function LeadSave({ placeId, onSaved }: { placeId: string; onSaved?: () => void 
     }
   }
 
+  async function hide() {
+    setHiding(true);
+    setHideError(null);
+    try {
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId, notAFit: { websiteUrl: websiteUrl.trim() || null } }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.message ?? "Could not hide this business.");
+      setState({ kind: "saved", lead: body.lead });
+      onSaved?.();
+    } catch (error) {
+      setHideError(error instanceof Error ? error.message : "Could not hide this business.");
+    } finally {
+      setHiding(false);
+    }
+  }
+
   if (state.kind === "loading") return <Spinner label="Checking leads…" />;
   if (state.kind === "error") return <InlineMessage tone="danger">{state.message}</InlineMessage>;
+  if (state.kind === "saved" && state.lead.lead_status === "not_a_fit") {
+    return (
+      <div className="rounded-lg border border-border bg-surface-muted p-3 text-sm">
+        <p className="flex items-center gap-2">
+          <LeadStatusBadge status="not_a_fit" /> Has a website, so it is hidden from the map.
+        </p>
+        <p className="mt-1 text-xs text-muted">
+          Changed your mind? Open the lead and set another status.{" "}
+          <a href={`/leads?lead=${state.lead.id}`} className="text-info hover:underline">
+            Open lead
+          </a>
+        </p>
+      </div>
+    );
+  }
   if (state.kind === "saved") {
     return (
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info/25 bg-info-soft p-3">
@@ -169,10 +187,47 @@ function LeadSave({ placeId, onSaved }: { placeId: string; onSaved?: () => void 
     );
   }
   return (
-    <Button variant="primary" className="w-full" onClick={save} disabled={state.kind === "saving"}>
-      <IconStar />
-      {state.kind === "saving" ? "Saving…" : "Save as lead"}
-    </Button>
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="primary" onClick={save} disabled={state.kind === "saving" || hiding}>
+          <IconStar />
+          {state.kind === "saving" ? "Saving…" : "Save as lead"}
+        </Button>
+        <Button onClick={() => setHideOpen((open) => !open)} aria-expanded={hideOpen} disabled={state.kind === "saving"}>
+          <IconGlobe />
+          Has a website
+        </Button>
+      </div>
+      {hideOpen && (
+        <div className="space-y-2 rounded-lg border border-border bg-surface-muted p-3">
+          <p className="text-xs text-muted">
+            Found their website on Google Maps? Hide this business so it stops showing as a lead. Pasting the URL is
+            optional.
+          </p>
+          <label className="sr-only" htmlFor="not-a-fit-url">
+            Their website (optional)
+          </label>
+          <Input
+            id="not-a-fit-url"
+            dir="ltr"
+            inputMode="url"
+            placeholder="https://their-website.com (optional)"
+            maxLength={2048}
+            value={websiteUrl}
+            onChange={(e) => setWebsiteUrl(e.target.value)}
+          />
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="primary" onClick={hide} disabled={hiding}>
+              {hiding ? "Hiding…" : "Hide this business"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setHideOpen(false)}>
+              Cancel
+            </Button>
+            {hideError && <InlineMessage tone="danger">{hideError}</InlineMessage>}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -187,8 +242,17 @@ function Details({ place }: { place: PlaceDetails }) {
         {style.description}. Based on open data, which can be incomplete or out of date. Check before contacting the business.
       </p>
 
-      {place.phones.length > 0 && (
+      {(place.phones.length > 0 || place.emails.length > 0) && (
         <div className="flex flex-wrap gap-2">
+          {place.emails.map((email) => {
+            const href = mailtoHref(email);
+            return href ? (
+              <a key={email} href={href} dir="ltr" title={email} className="inline-flex h-8 max-w-60 items-center gap-1.5 rounded-md border border-border-strong px-2.5 text-xs font-medium hover:bg-surface-muted">
+                <IconMail />
+                <span className="truncate">{email}</span>
+              </a>
+            ) : null;
+          })}
           {place.phones.map((phone) => {
             const href = telHref(phone);
             return href ? (
@@ -205,8 +269,7 @@ function Details({ place }: { place: PlaceDetails }) {
         </div>
       )}
 
-      <LinkList title="Website" urls={place.websites} />
-      <LinkList title="Social links" urls={place.socials} />
+      <SocialLinks urls={[...place.websites, ...place.socials]} />
 
       <details className="group rounded-lg border border-border p-3">
         <summary className="flex cursor-pointer items-center justify-between text-sm font-medium">

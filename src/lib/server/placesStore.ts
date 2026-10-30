@@ -43,6 +43,7 @@ export interface PlaceDetails {
   websites: string[];
   socials: string[];
   phones: string[];
+  emails: string[];
   web_presence: WebPresence;
   has_instagram: boolean;
   confidence: number | null;
@@ -89,7 +90,8 @@ function buildMapQuery(supabase: SupabaseClient, [west, south, east, north]: BBo
   let query = supabase
     .from("places")
     .select(
-      `id,name,basic_category,web_presence,has_instagram,lat,lon,lead_score,chain_size,lead:leads${filters.saved === "only" ? "!inner" : ""}(lead_status)`,
+      // "hidden" embeds only Not-a-fit leads, so "hidden is null" drops those places.
+      `id,name,basic_category,web_presence,has_instagram,lat,lon,lead_score,chain_size,lead:leads${filters.saved === "only" ? "!inner" : ""}(lead_status),hidden:leads(id)`,
     )
     .gte("lon", west)
     .lte("lon", east)
@@ -103,6 +105,9 @@ function buildMapQuery(supabase: SupabaseClient, [west, south, east, north]: BBo
   if (filters.category) query = query.in("basic_category", [...CATEGORY_GROUPS[filters.category].categories]);
   if (filters.nameQuery) query = query.ilike("name", `%${escapeLike(filters.nameQuery)}%`);
   if (filters.saved === "hide") query = query.is("lead", null);
+  // Places marked Not a fit (e.g. already have a website) stay off the map.
+  query = query.eq("hidden.lead_status", "not_a_fit").is("hidden", null);
+  if (filters.source !== "all") query = query.eq("source", filters.source);
   if (filters.hideChains) query = query.lt("chain_size", CHAIN_MIN_LOCATIONS);
   // Best leads first, so truncation drops the weakest prospects.
   return query
@@ -163,7 +168,7 @@ export async function getPlaceDetails(supabase: SupabaseClient, id: string): Pro
   const { data, error } = await supabase
     .from("places")
     .select(
-      "id,name,basic_category,websites,socials,phones,web_presence,has_instagram,confidence,operating_status,lat,lon,source,area,source_release,source_datasets,source_licenses,lead_score,chain_size",
+      "id,name,basic_category,websites,socials,phones,emails,web_presence,has_instagram,confidence,operating_status,lat,lon,source,area,source_release,source_datasets,source_licenses,lead_score,chain_size",
     )
     .eq("id", id)
     .maybeSingle();
@@ -175,6 +180,7 @@ export async function getPlaceDetails(supabase: SupabaseClient, id: string): Pro
       webPresence: place.web_presence,
       hasInstagram: place.has_instagram,
       phoneCount: place.phones.length,
+      emailCount: place.emails?.length ?? 0,
       category: place.basic_category,
       confidence: place.confidence,
       chainSize: place.chain_size,

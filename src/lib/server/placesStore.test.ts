@@ -52,7 +52,10 @@ describe("queryPlaces", () => {
     expect(url.pathname).toBe("/rest/v1/places");
     expect(params.getAll("lon")).toEqual(["gte.39.13", "lte.39.17"]);
     expect(params.getAll("lat")).toEqual(["gte.21.57", "lte.21.6"]);
-    expect(params.get("web_presence")).toBe("in.(social_only,no_website_listed)");
+    expect(params.get("web_presence")).toBe("in.(social_only,no_website_listed,unknown)");
+    expect(params.get("hidden.lead_status")).toBe("eq.not_a_fit");
+    expect(params.get("hidden")).toBe("is.null");
+    expect(params.get("source")).toBeNull();
     expect(params.get("or")).toBe("(confidence.gte.0.5,confidence.is.null)");
     expect(params.get("has_instagram")).toBe("eq.true");
     expect(params.get("basic_category")).toBe("in.(hotel,lodging,resort)");

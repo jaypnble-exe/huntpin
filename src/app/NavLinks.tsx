@@ -7,6 +7,9 @@ import { cn } from "@/components/ui";
 const LINKS = [
   { href: "/", label: "Map" },
   { href: "/leads", label: "Leads" },
+  { href: "/queue", label: "Outreach" },
+  { href: "/pipeline", label: "Pipeline" },
+  { href: "/templates", label: "Templates" },
   { href: "/summary", label: "Summary" },
   { href: "/google", label: "Google search" },
 ];

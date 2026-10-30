@@ -17,6 +17,11 @@ export const PRESENCE_STYLES: Record<WebPresence, { color: string; label: string
     label: "Website listed",
     description: "A website is listed",
   },
+  unknown: {
+    color: "#8b5cf6",
+    label: "Website unknown",
+    description: "Foursquare lists no website or socials, but it rarely records them; check Google Maps",
+  },
   possibly_closed: {
     color: "#525252",
     label: "Possibly closed",

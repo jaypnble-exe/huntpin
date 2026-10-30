@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
-const UNAVAILABLE = "Leads are unavailable. Check Supabase and that migration 003 has been run.";
+const UNAVAILABLE = "Leads are unavailable. Check Supabase and that every file in supabase/migrations (up to 010) has been run.";
 
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;

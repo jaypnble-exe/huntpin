@@ -12,6 +12,7 @@ const RAW: FoursquarePlace = {
   date_refreshed: "2026-09-28",
   date_closed: null,
   tel: "+966 12 000 0000",
+  email: "hello@olffat.sa",
   website: null,
   facebook_id: null,
   instagram: "olffat.sa",
@@ -55,6 +56,7 @@ describe("toFoursquarePlaceRow", () => {
       websites: [],
       socials: ["https://www.instagram.com/olffat.sa"],
       phones: ["+966 12 000 0000"],
+      emails: ["hello@olffat.sa"],
       web_presence: "social_only",
       has_instagram: true,
       confidence: null,
@@ -65,7 +67,7 @@ describe("toFoursquarePlaceRow", () => {
   });
 
   it("marks places with nothing listed", () => {
-    expect(toFoursquarePlaceRow({ ...RAW, instagram: null }, OPTS)?.web_presence).toBe("no_website_listed");
+    expect(toFoursquarePlaceRow({ ...RAW, instagram: null }, OPTS)?.web_presence).toBe("unknown");
   });
 
   it("skips closed, stale, non-business and malformed records", () => {

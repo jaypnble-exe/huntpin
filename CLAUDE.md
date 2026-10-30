@@ -30,7 +30,8 @@ Google-specific sections below.
   (`scripts/import-overture.ts`). Areas live in `src/lib/places/areas.ts`; a
   bbox may span at most 1 degree and an import at most 100,000 rows.
 - **Web presence labels** (`src/lib/places/webPresence.ts`): `website_listed`,
-  `social_only`, `no_website_listed`, `possibly_closed`. They describe what the
+  `social_only`, `no_website_listed`, `unknown` (Foursquare place with nothing
+  listed; Foursquare rarely records websites), `possibly_closed`. They describe what the
   data *lists*. Never present them as proof that a business has no website.
   Most Jeddah records come from Meta, so `social_only` usually means a Facebook
   page with no website listed.
@@ -51,6 +52,14 @@ Google-specific sections below.
 - **Refresh:** `npm run refresh:places` re-imports the newest Overture release
   and Foursquare with pruning. Pruning never removes places saved as leads,
   and is skipped when an import is under half the existing size.
+- **Lead status `not_a_fit`** (e.g. already has a website, found on Google
+  Maps): hidden from the map and the default leads list; no drafts, reminders
+  or batch checks.
+- **Emails** (`places.emails`, from Overture `emails` / Foursquare `email`) are
+  shown as `mailto:` links that open the operator's own mail app for one
+  recipient with the draft filled in. Never send email from the app, never
+  bulk or merge-send, and honour `do_not_contact`. Many are personal inboxes.
+- **Rescore** without re-importing: `npm run rescore:places -- --area <name>`.
 - **Batch website review** is allowed only as an operator-clicked action on
   saved leads: at most 20 per run, one check every 7 seconds, skipping leads
   checked in the last 30 days and opted-out leads. Never schedule it.
@@ -59,6 +68,18 @@ Google-specific sections below.
 - **Google ratings/photos:** only via Maps URLs links ("Find on Google Maps";
   no key, no billing). The owner declined anything that needs a Google billing
   account (Maps Embed API, Places API ratings/photos), even if usage is free.
+- **Outreach queue** (`/queue`): one business at a time; the operator sends
+  from their own WhatsApp/mail app and presses "Sent", which only records the
+  contact. Daily cap on first messages (`DAILY_OUTREACH_LIMIT`, max 50),
+  enforced on the server. Never add automatic or bulk sending.
+- **Templates** live in `app_settings` (`outreach_templates`) and can be edited
+  per paragraph. Category pitches describe what is offered, never claims about
+  the business.
+- **Deal stages** after `replied`: `meeting`, `proposal_sent`, `won`, `lost`
+  (migration 010), with `deal_value` in SAR.
+- **Login**: one operator password (`APP_PASSWORD_HASH`, `SESSION_SECRET`,
+  `APP_ALLOWED_HOSTS`). Without it the app stays localhost-only. Vercel Hobby
+  is non-commercial, so don't propose it for hosting.
 - Zero cost remains a hard requirement: free tiers only, no paid services.
 
 ## Working principles

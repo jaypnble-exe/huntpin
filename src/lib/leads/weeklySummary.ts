@@ -1,6 +1,6 @@
 // Weekly summary of outreach activity, computed from saved leads.
 import { addDays, isDue, localDate, wantsFollowUp } from "./followUps";
-import { LEAD_STATUSES, type LeadStatus } from "./leads";
+import { isDealStage, LEAD_STATUSES, type LeadStatus } from "./leads";
 
 export interface SummaryLead {
   lead_status: LeadStatus;
@@ -36,7 +36,8 @@ export function computeWeeklySummary(leads: SummaryLead[], now: Date, timeZone?:
   for (const lead of leads) pipeline[lead.lead_status] += 1;
 
   const contacted = leads.filter((l) => l.first_contacted_at !== null);
-  const replied = contacted.filter((l) => l.lead_status === "replied").length;
+  // Leads further along (meeting, proposal, won, lost) replied too.
+  const replied = contacted.filter((l) => isDealStage(l.lead_status)).length;
   const nextWeek = addDays(today, 7);
 
   return {
