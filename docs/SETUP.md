@@ -73,6 +73,31 @@ The usage counter lives in Supabase. The limit check and the request record
 happen in one database function, so simultaneous searches cannot both pass. If
 Supabase is unreachable, the app refuses searches.
 
+## Open places data (Overture Maps)
+
+The map uses open data from [Overture Maps](https://docs.overturemaps.org/guides/places/),
+not Google. Downloading it is free and needs no account.
+
+1. Run `supabase/migrations/002_places.sql` once in the SQL Editor.
+2. Preview an import without writing anything:
+   `npm run import:places -- --area jeddah --dry-run`
+3. Import: `npm run import:places -- --area jeddah`. Re-running updates rows
+   by Overture ID. Jeddah is about 24,000 places.
+4. Other cities: add them to `src/lib/places/areas.ts`, or pass
+   `--bbox west,south,east,north --name "City"` (at most 1 degree each way).
+
+**Licences and attribution.** Each record keeps its source datasets and
+licences: CDLA-Permissive-2.0 (Meta, Microsoft and others), Apache-2.0
+(Foursquare: "Copyright 2024 Foursquare Labs, Inc. All rights reserved.") and
+CC0-1.0 (AllThePlaces). Credit Overture Maps Foundation and those sources where
+the data is shown. See the [Overture attribution page](https://docs.overturemaps.org/attribution/).
+
+**Limits of the data.** The web-presence labels describe what the data lists.
+Most records come from Facebook pages, so "social only" usually means a Facebook
+page without a website listed. Some places are stale; use the confidence score
+to filter. Phone numbers are business listings. Use them only for respectful,
+low-volume outreach that follows local privacy and anti-spam rules.
+
 ## 3. Google Cloud setup (do this before enabling search)
 
 1. **Use a dedicated project.** Create a new Google Cloud project for this app.

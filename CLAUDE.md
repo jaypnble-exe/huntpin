@@ -14,6 +14,38 @@ Initial example:
 
 **Primary constraint: target $0 in Google API charges during initial development and testing.** Do not assume this is guaranteed just because an API has a free usage cap. Implement safeguards and verify the SKU and current free usage allowance before running real searches.
 
+## Direction update (2026-10-30): open-data map
+
+The owner chose to build a Pindrop-style map (businesses that appear to have no
+website, including social/Instagram-only sellers) on **open data** instead of
+Google Places. This section takes precedence where it conflicts with the
+Google-specific sections below.
+
+- **Primary data: Overture Maps places** (public S3, no account, no cost).
+  Licensed per source: CDLA-Permissive-2.0, Apache-2.0 (Foursquare), CC0-1.0
+  (AllThePlaces). It may be stored with attribution, so it lives in the Supabase
+  `places` table (`supabase/migrations/002_places.sql`). Keep each row's
+  `source_datasets` and `source_licenses`.
+- **Import:** `npm run import:places -- --area <name> [--dry-run]`
+  (`scripts/import-overture.ts`). Areas live in `src/lib/places/areas.ts`; a
+  bbox may span at most 1 degree and an import at most 100,000 rows.
+- **Web presence labels** (`src/lib/places/webPresence.ts`): `website_listed`,
+  `social_only`, `no_website_listed`, `possibly_closed`. They describe what the
+  data *lists*. Never present them as proof that a business has no website.
+  Most Jeddah records come from Meta, so `social_only` usually means a Facebook
+  page with no website listed.
+- **Map: MapLibre GL JS with OpenFreeMap tiles** (no key, no account). Show the
+  required attribution: Overture Maps Foundation, plus "Copyright 2024
+  Foursquare Labs, Inc. All rights reserved." when Foursquare-sourced records
+  are shown, and the tile/OpenStreetMap credits.
+- **Google Places stays optional** and off by default. All Google safeguards
+  below still apply to it. Never mix Google Places content into the `places`
+  table.
+- **Foursquare OS Places** (adds Instagram handles) requires the owner to
+  create a Places Portal account and token. Do not add it without them.
+- **Never scrape Instagram, Facebook or Google Maps** to find sellers.
+- Zero cost remains a hard requirement: free tiers only, no paid services.
+
 ## Working principles
 
 1. Inspect the existing repository before making changes. Preserve existing conventions and avoid replacing working code without a reason.
