@@ -7,8 +7,8 @@ import { authConfig, SESSION_COOKIE, verifySessionToken } from "@/lib/auth/sessi
 // the home network, for phone access).
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-// Reachable without a session.
-const PUBLIC_PATHS = new Set(["/login", "/api/auth/login", "/api/auth/logout"]);
+// Reachable without a session (the app icons are shown on the login page too).
+const PUBLIC_PATHS = new Set(["/login", "/api/auth/login", "/api/auth/logout", "/icon.svg", "/apple-icon.png"]);
 
 function hostnameOf(host: string): string {
   return host.startsWith("[") ? host.slice(0, host.indexOf("]") + 1) : host.split(":")[0];

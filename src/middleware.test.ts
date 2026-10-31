@@ -54,6 +54,8 @@ describe("middleware with login", () => {
     expect(page.status).toBe(307);
     expect(page.headers.get("location")).toBe("http://192.168.1.20:3000/login?next=%2Fleads%3Flead%3D1");
     expect(await status(request("GET", PHONE_HOST, "/login"))).toBe(200);
+    expect(await status(request("GET", PHONE_HOST, "/icon.svg"))).toBe(200);
+    expect(await status(request("GET", { host: "evil.example" }, "/icon.svg"))).toBe(403);
     expect(await status(request("POST", { ...PHONE_HOST, "content-type": "application/json" }, "/api/auth/login"))).toBe(200);
   });
 

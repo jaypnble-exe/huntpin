@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Button, Card, Field, InlineMessage, Input } from "@/components/ui";
+import { Logo } from "../Logo";
 
 export function LoginForm() {
   const params = useSearchParams();
@@ -32,7 +33,8 @@ export function LoginForm() {
 
   return (
     <Card className="mx-auto mt-16 max-w-sm p-6">
-      <h1 className="text-lg font-semibold">Sign in to HuntPin</h1>
+      <Logo className="h-12 w-12" />
+      <h1 className="mt-3 text-lg font-semibold">Sign in to HuntPin</h1>
       <form onSubmit={submit} className="mt-4 space-y-3">
         <Field label="Password">
           <Input
