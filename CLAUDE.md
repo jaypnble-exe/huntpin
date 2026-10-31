@@ -82,8 +82,13 @@ Google-specific sections below.
 - **Deal stages** after `replied`: `meeting`, `proposal_sent`, `won`, `lost`
   (migration 010), with `deal_value` in SAR.
 - **Login**: one operator password (`APP_PASSWORD_HASH`, `SESSION_SECRET`,
-  `APP_ALLOWED_HOSTS`). Without it the app stays localhost-only. Vercel Hobby
-  is non-commercial, so don't propose it for hosting.
+  `APP_ALLOWED_HOSTS`). Without it the app stays localhost-only.
+- **Production:** https://huntpin.vercel.app (Vercel project `huntpin`, team
+  `pejay-paronables-projects`), deployed on every push to `main`. Settings live
+  in Vercel environment variables; `APP_ALLOWED_HOSTS` must list every
+  production domain. The owner chose Vercel despite Hobby being
+  non-commercial-only (2026-10-31); keep the Foursquare token and Google key
+  out of what the app needs there.
 - Zero cost remains a hard requirement: free tiers only, no paid services.
 
 ## Working principles
