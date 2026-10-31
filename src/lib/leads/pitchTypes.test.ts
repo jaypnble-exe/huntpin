@@ -30,6 +30,17 @@ describe("pitch types", () => {
   });
 });
 
+describe("AI automations in pitches", () => {
+  it("every type and group pitch offers an AI automation, in both languages", () => {
+    for (const key of PITCH_TYPE_KEYS) {
+      expect(DEFAULT_TEMPLATES.en.typePitches[key]).toMatch(/\bAI\b/);
+      expect(DEFAULT_TEMPLATES.ar.typePitches[key]).toMatch(/مساعد ذكي|ذكاء اصطناعي|الذكاء الاصطناعي/);
+    }
+    for (const text of Object.values(DEFAULT_TEMPLATES.en.pitches)) expect(text).toMatch(/\bAI\b/);
+    for (const text of Object.values(DEFAULT_TEMPLATES.ar.pitches)) expect(text).toMatch(/مساعد ذكي|ذكاء اصطناعي|الذكاء الاصطناعي/);
+  });
+});
+
 describe("choosing the pitch", () => {
   const en = DEFAULT_TEMPLATES.en;
 
