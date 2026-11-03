@@ -17,7 +17,7 @@ export type DraftKind = "first" | "follow_up";
  * `{name}` in a named greeting is replaced by the business name.
  */
 export interface LanguageTemplates {
-  first: { greeting: string; greetingNamed: string; intro: string; question: string; closing: string };
+  first: { greeting: string; greetingNamed: string; reviews: string; intro: string; question: string; closing: string };
   followUp: { greeting: string; greetingNamed: string; body: string; closing: string };
   /** Replaces the first message's general question for businesses of that type. */
   typePitches: Record<PitchType, string>;
@@ -30,12 +30,15 @@ export type OutreachTemplates = Record<OutreachLanguage, LanguageTemplates>;
 
 // Default messages (see CLAUDE.md). Do not add business-specific claims here;
 // only mention a website issue if it was actually checked. Pitches describe
-// what is offered to a kind of business, never what a business lacks.
+// what is offered to a kind of business, never what a business lacks. The one
+// exception is `reviews`, which the owner chose to add to every first message
+// (2026-11-03); it can be edited or emptied on the Templates page.
 export const DEFAULT_TEMPLATES: OutreachTemplates = {
   en: {
     first: {
       greeting: "Hi! 👋 I came across your business online and wanted to reach out.",
       greetingNamed: "Hi {name} team! 👋 I came across your business online and wanted to reach out.",
+      reviews: "I saw your business on Google Maps and you have impressive Google reviews, but I couldn’t find a website for you.",
       intro:
         "I’m a web and mobile app developer, and I help businesses build and improve websites, develop custom systems and mobile applications, and implement AI automations to streamline their operations.",
       question:
@@ -92,6 +95,7 @@ export const DEFAULT_TEMPLATES: OutreachTemplates = {
     first: {
       greeting: "مرحباً! 👋 صادفت نشاطكم التجاري على الإنترنت وأحببت التواصل معكم.",
       greetingNamed: "مرحباً فريق {name}! 👋 صادفت نشاطكم التجاري على الإنترنت وأحببت التواصل معكم.",
+      reviews: "رأيت نشاطكم التجاري على خرائط Google ولديكم تقييمات رائعة، لكنني لم أجد موقعاً إلكترونياً لكم.",
       intro:
         "أنا مطوّر مواقع وتطبيقات جوال، وأساعد الأنشطة التجارية في إنشاء المواقع الإلكترونية وتطويرها، وبناء أنظمة مخصصة وتطبيقات جوال، وتطبيق حلول الأتمتة بالذكاء الاصطناعي لتسهيل أعمالهم.",
       question:
@@ -149,7 +153,7 @@ export const DEFAULT_TEMPLATES: OutreachTemplates = {
 const LANGS = Object.keys(OUTREACH_LANGUAGES) as OutreachLanguage[];
 
 function firstText(t: LanguageTemplates): string {
-  return [t.first.greeting, t.first.intro, t.first.question, t.first.closing].join("\n\n");
+  return [t.first.greeting, t.first.reviews, t.first.intro, t.first.question, t.first.closing].join("\n\n");
 }
 
 /** The general default messages, as full text (kept for display and tests). */
@@ -180,7 +184,7 @@ const CONTROL_CHARS = /[\u0000-\u0009\u000b-\u001f\u007f]/;
 type Shape = { [key: string]: number | Shape };
 const PARAGRAPH = MAX_PARAGRAPH_LENGTH;
 const LANGUAGE_SHAPE: Shape = {
-  first: { greeting: PARAGRAPH, greetingNamed: PARAGRAPH, intro: PARAGRAPH, question: PARAGRAPH, closing: PARAGRAPH },
+  first: { greeting: PARAGRAPH, greetingNamed: PARAGRAPH, reviews: PARAGRAPH, intro: PARAGRAPH, question: PARAGRAPH, closing: PARAGRAPH },
   followUp: { greeting: PARAGRAPH, greetingNamed: PARAGRAPH, body: PARAGRAPH, closing: PARAGRAPH },
   typePitches: Object.fromEntries(PITCH_TYPE_KEYS.map((key) => [key, PARAGRAPH])),
   pitches: Object.fromEntries(Object.keys(CATEGORY_GROUPS).map((key) => [key, PARAGRAPH])),
@@ -361,11 +365,11 @@ export function buildDraft({
   const pitchText = choiceText(t, pitch ?? autoPitch(t, pitchType, category));
   const paragraphs =
     kind === "first"
-      ? [greeting, t.first.intro, pitchText || t.first.question, t.first.closing]
+      ? [greeting, t.first.reviews, t.first.intro, pitchText || t.first.question, t.first.closing]
       : [greeting, t.followUp.body, t.followUp.closing];
   // First message: after the intro. Follow-up: right after the greeting.
   if (sentences.length > 0) {
-    paragraphs.splice(kind === "first" ? 2 : 1, 0, `${sentences.join(" ")} ${OBSERVATION_CLOSE[language]}`);
+    paragraphs.splice(kind === "first" ? 3 : 1, 0, `${sentences.join(" ")} ${OBSERVATION_CLOSE[language]}`);
   }
   // Portfolio goes just before the closing question.
   if (portfolio && portfolio.mode !== "none" && (portfolio.mode === "offer" || portfolio.url)) {

@@ -188,6 +188,12 @@ export function TemplatesEditor() {
                     (v) => update((c) => ({ ...c, first: { ...c.first, greetingNamed: v } })),
                     "Must contain {name}, which becomes the business name.",
                   )}
+                  {paragraph(
+                    "Google reviews line",
+                    t.first.reviews,
+                    (v) => update((c) => ({ ...c, first: { ...c.first, reviews: v } })),
+                    "Added to every first message. Empty it to leave it out.",
+                  )}
                   {paragraph("About you", t.first.intro, (v) => update((c) => ({ ...c, first: { ...c.first, intro: v } })))}
                   {paragraph(
                     "General question",

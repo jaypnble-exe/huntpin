@@ -78,7 +78,10 @@ Google-specific sections below.
   per paragraph. First messages use the pitch for the business type
   (`src/lib/leads/pitchTypes.ts`, ~26 types), else its category group, else
   the general question; the operator can override it per draft. Pitches
-  describe what is offered, never claims about the business.
+  describe what is offered, never claims about the business. Exception
+  (owner's choice, 2026-11-03): every first message includes a "Google
+  reviews" line (`first.reviews`, editable or emptied on the Templates page)
+  saying the business has impressive Google reviews but no website was found.
 - **Deal stages** after `replied`: `meeting`, `proposal_sent`, `won`, `lost`
   (migration 010), with `deal_value` in SAR.
 - **Login**: one operator password (`APP_PASSWORD_HASH`, `SESSION_SECRET`,

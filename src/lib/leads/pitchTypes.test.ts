@@ -53,13 +53,13 @@ describe("choosing the pitch", () => {
 
   it("uses the type's pitch, and the operator's override", () => {
     const gym = buildDraft({ language: "en", name: "PT Gym", sentences: [], pitchType: "gym", category: "beauty" }).split("\n\n");
-    expect(gym[2]).toBe(en.typePitches.gym);
+    expect(gym[3]).toBe(en.typePitches.gym);
 
     const overridden = buildDraft({ language: "ar", name: null, sentences: [], pitchType: "gym", pitch: "type:restaurant" }).split("\n\n");
-    expect(overridden[2]).toBe(DEFAULT_TEMPLATES.ar.typePitches.restaurant);
+    expect(overridden[3]).toBe(DEFAULT_TEMPLATES.ar.typePitches.restaurant);
 
     const general = buildDraft({ language: "en", name: null, sentences: [], pitchType: "gym", pitch: "general" }).split("\n\n");
-    expect(general[2]).toBe(en.first.question);
+    expect(general[3]).toBe(en.first.question);
   });
 
   it("validates pitch choices", () => {

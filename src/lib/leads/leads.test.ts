@@ -108,11 +108,13 @@ describe("outreach", () => {
     expect(canDraftOutreach("do_not_contact")).toBe(false);
   });
 
-  it("uses the default message from CLAUDE.md, without claiming a source", () => {
+  it("uses the default message from CLAUDE.md, mentioning Google only in the reviews line", () => {
     expect(DEFAULT_OUTREACH_MESSAGE.startsWith("Hi! 👋 I came across your business online")).toBe(true);
     expect(DEFAULT_OUTREACH_MESSAGE.endsWith("Would you be open to a quick chat? 😊")).toBe(true);
-    for (const template of Object.values(OUTREACH_TEMPLATES)) {
-      expect(template.text).not.toMatch(/Google/i);
+    for (const [lang, template] of Object.entries(OUTREACH_TEMPLATES)) {
+      const reviews = DEFAULT_TEMPLATES[lang as keyof typeof DEFAULT_TEMPLATES].first.reviews;
+      expect(template.text).toContain(reviews);
+      expect(template.text.replace(reviews, "")).not.toMatch(/Google/i);
     }
   });
 
@@ -154,11 +156,12 @@ describe("personalised drafts", () => {
     });
     const paragraphs = draft.split("\n\n");
     expect(paragraphs[0]).toBe("Hi Basic Cafe team! 👋 I came across your business online and wanted to reach out.");
-    expect(paragraphs[1]).toMatch(/^I’m a web and mobile app developer/);
-    expect(paragraphs[2]).toBe(
+    expect(paragraphs[1]).toMatch(/^I saw your business on Google Maps/);
+    expect(paragraphs[2]).toMatch(/^I’m a web and mobile app developer/);
+    expect(paragraphs[3]).toBe(
       "I noticed your website doesn’t seem to have an Arabic version. I’d be happy to help with that.",
     );
-    expect(paragraphs).toHaveLength(5);
+    expect(paragraphs).toHaveLength(6);
   });
 
   it("builds a short personalised follow-up", () => {
@@ -192,8 +195,8 @@ ${url}`);
 describe("category pitches and edited templates", () => {
   it("replaces the general question with the category pitch in first messages only", () => {
     const first = buildDraft({ language: "en", name: "Basic Cafe", sentences: [], category: "food" }).split("\n\n");
-    expect(first[2]).toBe(DEFAULT_TEMPLATES.en.pitches.food);
-    expect(first).toHaveLength(4);
+    expect(first[3]).toBe(DEFAULT_TEMPLATES.en.pitches.food);
+    expect(first).toHaveLength(5);
     expect(first.join(" ")).not.toContain("I was wondering");
     const followUp = buildDraft({ language: "en", name: "Basic Cafe", sentences: [], kind: "follow_up", category: "food" });
     expect(followUp).not.toContain(DEFAULT_TEMPLATES.en.pitches.food);
@@ -204,6 +207,7 @@ describe("category pitches and edited templates", () => {
     const templates = structuredClone(DEFAULT_TEMPLATES);
     templates.en.pitches.food = "  ";
     templates.en.first.intro = "";
+    templates.en.first.reviews = "";
     const draft = buildDraft({ language: "en", name: null, sentences: [], category: "food", templates }).split("\n\n");
     expect(draft).toEqual([templates.en.first.greeting, templates.en.first.question, templates.en.first.closing]);
   });
