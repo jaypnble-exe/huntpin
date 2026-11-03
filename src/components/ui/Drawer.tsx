@@ -8,6 +8,7 @@ import { IconX } from "./icons";
  * Side panel on wide screens, bottom sheet on phones. Non-modal: the page
  * behind stays usable. Escape closes it; focus moves to the panel on open.
  * With `dismissOnOutsideClick`, pressing anywhere outside the panel closes it.
+ * A `footer` stays pinned below the scrolling content.
  */
 export function Drawer({
   label,
@@ -17,6 +18,7 @@ export function Drawer({
   position = "fixed",
   dismissOnOutsideClick = false,
   className,
+  footer,
   children,
 }: {
   label: string;
@@ -27,6 +29,7 @@ export function Drawer({
   position?: "fixed" | "absolute";
   dismissOnOutsideClick?: boolean;
   className?: string;
+  footer?: ReactNode;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLElement>(null);
@@ -89,6 +92,7 @@ export function Drawer({
         </button>
       </header>
       <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+      {footer && <footer className="border-t border-border bg-surface px-5 py-3">{footer}</footer>}
     </aside>
   );
 }

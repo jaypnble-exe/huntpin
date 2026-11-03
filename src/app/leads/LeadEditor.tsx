@@ -16,11 +16,9 @@ import {
   IconTrash,
   InlineMessage,
   Input,
-  Section,
   Select,
-  Textarea,
 } from "@/components/ui";
-import { FOLLOW_UP_AFTER_DAYS, MAX_FOLLOW_UPS, wantsFollowUp } from "@/lib/leads/followUps";
+import { MAX_FOLLOW_UPS, wantsFollowUp } from "@/lib/leads/followUps";
 import {
   canDraftOutreach,
   DEAL_CURRENCY,
@@ -28,8 +26,6 @@ import {
   LEAD_STATUS_LABELS,
   LEAD_STATUSES,
   MAX_DEAL_VALUE,
-  MAX_LABEL_LENGTH,
-  MAX_NOTES_LENGTH,
   type LeadStatus,
 } from "@/lib/leads/leads";
 import { categoryGroupOf, humanizeCategory } from "@/lib/places/categories";
@@ -41,10 +37,6 @@ import { hasKnownWebsite } from "@/lib/leads/outreach";
 import { pitchTypeOf } from "@/lib/leads/pitchTypes";
 import { OutreachDraft } from "./OutreachDraft";
 import { leadOpportunities, WebsiteCheck } from "./WebsiteCheck";
-
-function toDateInput(value: string | null): string {
-  return value ? value.slice(0, 10) : "";
-}
 
 function toValueInput(value: number | null): string {
   return value === null ? "" : String(value);
@@ -61,11 +53,7 @@ export function LeadEditor({
   onSaved: (lead: Lead) => void;
   onDeleted: (id: string) => void;
 }) {
-  const [label, setLabel] = useState(lead.label ?? "");
   const [status, setStatus] = useState<LeadStatus>(lead.lead_status);
-  const [notes, setNotes] = useState(lead.operator_notes ?? "");
-  const [firstContacted, setFirstContacted] = useState(toDateInput(lead.first_contacted_at));
-  const [lastContacted, setLastContacted] = useState(toDateInput(lead.last_contacted_at));
   const [followUpOn, setFollowUpOn] = useState(lead.follow_up_on ?? "");
   const [dealValue, setDealValue] = useState(toValueInput(lead.deal_value));
   const [busy, setBusy] = useState(false);
@@ -73,8 +61,6 @@ export function LeadEditor({
 
   function applyLead(updated: Lead) {
     setStatus(updated.lead_status);
-    setFirstContacted(toDateInput(updated.first_contacted_at));
-    setLastContacted(toDateInput(updated.last_contacted_at));
     setFollowUpOn(updated.follow_up_on ?? "");
     setDealValue(toValueInput(updated.deal_value));
     onSaved(updated);
@@ -104,20 +90,20 @@ export function LeadEditor({
     event.preventDefault();
     patch(
       {
-        label,
         status,
-        notes,
-        firstContactedOn: firstContacted || null,
-        lastContactedOn: lastContacted || null,
         followUpOn: followUpOn || null,
         dealValue: dealValue.trim() === "" ? null : Number(dealValue),
       },
       "Saved.",
     );
   };
+  const dirty =
+    status !== lead.lead_status ||
+    followUpOn !== (lead.follow_up_on ?? "") ||
+    dealValue !== toValueInput(lead.deal_value);
 
   async function remove() {
-    if (!window.confirm("Delete this lead? Its status, notes and contact dates will be lost.")) return;
+    if (!window.confirm("Delete this lead? Its status and contact history will be lost.")) return;
     setBusy(true);
     try {
       const response = await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });
@@ -145,6 +131,70 @@ export function LeadEditor({
       title={lead.label ?? place?.name ?? "Lead"}
       onClose={onClose}
       dismissOnOutsideClick
+      footer={
+        <form onSubmit={save} className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Status">
+              <Select value={status} onChange={(e) => setStatus(e.target.value as LeadStatus)}>
+                {LEAD_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {LEAD_STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            {isDealStage(status) ? (
+              <Field
+                label={`Deal value (${DEAL_CURRENCY})`}
+                hint={
+                  lead.closed_at && (status === "won" || status === "lost")
+                    ? `${status === "won" ? "Won" : "Lost"} on ${new Date(lead.closed_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}.`
+                    : undefined
+                }
+              >
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  max={MAX_DEAL_VALUE}
+                  step="any"
+                  value={dealValue}
+                  onChange={(e) => setDealValue(e.target.value)}
+                />
+              </Field>
+            ) : (
+              wantsFollowUp(status) && (
+                <Field
+                  label="Next follow-up"
+                  hint={`${Math.min(lead.follow_up_count, MAX_FOLLOW_UPS)} of ${MAX_FOLLOW_UPS} follow-ups sent.`}
+                >
+                  <Input type="date" value={followUpOn} onChange={(e) => setFollowUpOn(e.target.value)} />
+                </Field>
+              )
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {status !== "do_not_contact" && (
+              <Button
+                variant={dirty ? "secondary" : "primary"}
+                disabled={busy}
+                onClick={() =>
+                  patch({ markContacted: true }, lead.first_contacted_at ? "Marked as followed up today." : "Marked as contacted today.")
+                }
+              >
+                <IconCheck />
+                {lead.first_contacted_at ? "Mark followed up today" : "Mark contacted today"}
+              </Button>
+            )}
+            {dirty && (
+              <Button type="submit" variant="primary" disabled={busy}>
+                Save
+              </Button>
+            )}
+            {message && <InlineMessage tone={message.kind === "error" ? "danger" : "success"}>{message.text}</InlineMessage>}
+          </div>
+        </form>
+      }
       subtitle={
         <div className="flex flex-wrap items-center gap-1.5">
           {place && <ScorePill score={place.lead_score} />}
@@ -197,93 +247,6 @@ export function LeadEditor({
           </div>
         )}
 
-        <Section title="Status & notes">
-          <form onSubmit={save} className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Label">
-                <Input dir="auto" maxLength={MAX_LABEL_LENGTH} value={label} onChange={(e) => setLabel(e.target.value)} />
-              </Field>
-              <Field label="Status">
-                <Select value={status} onChange={(e) => setStatus(e.target.value as LeadStatus)}>
-                  {LEAD_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {LEAD_STATUS_LABELS[s]}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </div>
-            <Field label="Notes">
-              <Textarea
-                className="min-h-20"
-                dir="auto"
-                maxLength={MAX_NOTES_LENGTH}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="First contacted">
-                <Input type="date" value={firstContacted} onChange={(e) => setFirstContacted(e.target.value)} />
-              </Field>
-              <Field label="Last contacted">
-                <Input type="date" value={lastContacted} onChange={(e) => setLastContacted(e.target.value)} />
-              </Field>
-            </div>
-            {isDealStage(status) && (
-              <Field
-                label={`Deal value (${DEAL_CURRENCY})`}
-                hint={
-                  lead.closed_at && (status === "won" || status === "lost")
-                    ? `${status === "won" ? "Won" : "Lost"} on ${new Date(lead.closed_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}.`
-                    : "Expected or agreed project value. Shown on the Pipeline page."
-                }
-              >
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  max={MAX_DEAL_VALUE}
-                  step="any"
-                  value={dealValue}
-                  onChange={(e) => setDealValue(e.target.value)}
-                />
-              </Field>
-            )}
-            {wantsFollowUp(status) && (
-              <Field
-                label="Next follow-up"
-                hint={
-                  `Follow-ups sent: ${lead.follow_up_count} of ${MAX_FOLLOW_UPS}. ` +
-                  (lead.follow_up_count >= MAX_FOLLOW_UPS
-                    ? "That is the maximum; no more reminders unless you set a date."
-                    : `Set automatically ${FOLLOW_UP_AFTER_DAYS} days after each contact.`)
-                }
-              >
-                <Input type="date" value={followUpOn} onChange={(e) => setFollowUpOn(e.target.value)} />
-              </Field>
-            )}
-
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <Button type="submit" variant="primary" disabled={busy}>
-                Save
-              </Button>
-              {status !== "do_not_contact" && (
-                <Button
-                  disabled={busy}
-                  onClick={() =>
-                    patch({ markContacted: true }, lead.first_contacted_at ? "Marked as followed up today." : "Marked as contacted today.")
-                  }
-                >
-                  <IconCheck />
-                  {lead.first_contacted_at ? "Mark followed up today" : "Mark contacted today"}
-                </Button>
-              )}
-              {message && <InlineMessage tone={message.kind === "error" ? "danger" : "success"}>{message.text}</InlineMessage>}
-            </div>
-          </form>
-        </Section>
-
         <div className="border-t border-border pt-5">
           <WebsiteCheck lead={lead} onChecked={applyLead} />
         </div>
@@ -296,7 +259,7 @@ export function LeadEditor({
               category={categoryGroupOf(place?.basic_category ?? null)}
               pitchType={pitchTypeOf(place?.basic_category ?? null)}
               hasWebsite={hasKnownWebsite(place?.web_presence, lead.website_url)}
-              name={label.trim() || place?.name || null}
+              name={lead.label?.trim() || place?.name || null}
               confirmedSentences={confirmedSentences}
               defaultKind={lead.first_contacted_at ? "follow_up" : "first"}
             />
