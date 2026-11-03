@@ -37,6 +37,7 @@ import { mailtoHref } from "@/lib/places/emails";
 import { googleMapsSearchUrl, telHref } from "@/lib/places/links";
 import type { Lead } from "@/lib/server/leadsStore";
 import type { Queue, QueueItem } from "@/lib/server/queueStore";
+import { hasKnownWebsite } from "@/lib/leads/outreach";
 import { pitchTypeOf } from "@/lib/leads/pitchTypes";
 import { OutreachDraft } from "../leads/OutreachDraft";
 import { leadOpportunities } from "../leads/WebsiteCheck";
@@ -433,6 +434,7 @@ function QueueCard({
           defaultKind={item.kind}
           category={categoryGroupOf(place.basic_category)}
           pitchType={pitchTypeOf(place.basic_category)}
+          hasWebsite={hasKnownWebsite(place.web_presence, lead?.website_url)}
           onSendOpened={onOpened}
         />
 

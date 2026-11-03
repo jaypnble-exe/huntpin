@@ -63,6 +63,7 @@ export function OutreachDraft({
   defaultKind = "first",
   category = null,
   pitchType = null,
+  hasWebsite = false,
   onSendOpened,
 }: {
   phones: string[];
@@ -74,6 +75,8 @@ export function OutreachDraft({
   category?: CategoryGroup | null;
   /** The business's type (finer than the group); its pitch comes first. */
   pitchType?: PitchType | null;
+  /** A website is known: first messages leave out the Google reviews line. */
+  hasWebsite?: boolean;
   /** Called when the operator opens WhatsApp or their mail app with the draft. */
   onSendOpened?: (channel: "whatsapp" | "email") => void;
 }) {
@@ -97,9 +100,10 @@ export function OutreachDraft({
         kind,
         portfolio: { mode: portfolioMode, url: PORTFOLIO_URL },
         pitch,
+        hasWebsite,
         templates,
       }),
-    [language, name, confirmedSentences, kind, portfolioMode, pitch, templates],
+    [language, name, confirmedSentences, kind, portfolioMode, pitch, hasWebsite, templates],
   );
   const [text, setText] = useState(generated);
   const [edited, setEdited] = useState(false);

@@ -1,6 +1,7 @@
 // Outreach drafts. Drafts only: nothing here sends a message. The operator
 // edits, copies, and sends each one manually.
 import { CATEGORY_GROUPS, type CategoryGroup } from "../places/categories";
+import { isSocialUrl, type WebPresence } from "../places/webPresence";
 import { PITCH_TYPE_KEYS, PITCH_TYPES, type PitchType } from "./pitchTypes";
 
 export const OUTREACH_LANGUAGES = {
@@ -32,7 +33,8 @@ export type OutreachTemplates = Record<OutreachLanguage, LanguageTemplates>;
 // only mention a website issue if it was actually checked. Pitches describe
 // what is offered to a kind of business, never what a business lacks. The one
 // exception is `reviews`, which the owner chose to add to every first message
-// (2026-11-03); it can be edited or emptied on the Templates page.
+// (2026-11-03); it can be edited or emptied on the Templates page, and is
+// left out for businesses with a known website (see `hasKnownWebsite`).
 export const DEFAULT_TEMPLATES: OutreachTemplates = {
   en: {
     first: {
@@ -333,6 +335,15 @@ export function isPitchChoice(value: string): value is PitchChoice {
 }
 
 /**
+ * True when the data lists a website, or the operator entered or checked one
+ * that is not a social page. The Google reviews line says no website was
+ * found, so it is left out for these businesses.
+ */
+export function hasKnownWebsite(presence: WebPresence | null | undefined, websiteUrl: string | null | undefined): boolean {
+  return presence === "website_listed" || (!!websiteUrl && !isSocialUrl(websiteUrl));
+}
+
+/**
  * Personalised draft: the business name in the greeting, a pitch for the
  * business's category in first messages, and only the observations the
  * operator confirmed by looking at the site.
@@ -346,6 +357,7 @@ export function buildDraft({
   category = null,
   pitchType = null,
   pitch,
+  hasWebsite = false,
   templates = DEFAULT_TEMPLATES,
 }: {
   language: OutreachLanguage;
@@ -357,6 +369,8 @@ export function buildDraft({
   pitchType?: PitchType | null;
   /** Overrides the automatic pitch. */
   pitch?: PitchChoice;
+  /** Leaves out the Google reviews line, which says no website was found. */
+  hasWebsite?: boolean;
   templates?: OutreachTemplates;
 }): string {
   const t = templates[language];
@@ -365,7 +379,7 @@ export function buildDraft({
   const pitchText = choiceText(t, pitch ?? autoPitch(t, pitchType, category));
   const paragraphs =
     kind === "first"
-      ? [greeting, t.first.reviews, t.first.intro, pitchText || t.first.question, t.first.closing]
+      ? [greeting, hasWebsite ? "" : t.first.reviews, t.first.intro, pitchText || t.first.question, t.first.closing]
       : [greeting, t.followUp.body, t.followUp.closing];
   // First message: after the intro. Follow-up: right after the greeting.
   if (sentences.length > 0) {

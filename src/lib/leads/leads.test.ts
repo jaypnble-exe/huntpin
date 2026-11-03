@@ -5,6 +5,7 @@ import {
   buildDraft,
   DEFAULT_OUTREACH_MESSAGE,
   DEFAULT_TEMPLATES,
+  hasKnownWebsite,
   FOLLOW_UP_TEMPLATES,
   defaultLanguage,
   mergeTemplates,
@@ -162,6 +163,19 @@ describe("personalised drafts", () => {
       "I noticed your website doesn’t seem to have an Arabic version. I’d be happy to help with that.",
     );
     expect(paragraphs).toHaveLength(6);
+  });
+
+  it("leaves out the Google reviews line when a website is known", () => {
+    const reviews = DEFAULT_TEMPLATES.en.first.reviews;
+    expect(buildDraft({ language: "en", name: null, sentences: [] })).toContain(reviews);
+    const draft = buildDraft({ language: "en", name: null, sentences: [], hasWebsite: true });
+    expect(draft).not.toContain(reviews);
+    expect(draft.split("\n\n")).toHaveLength(4);
+    expect(hasKnownWebsite("website_listed", null)).toBe(true);
+    expect(hasKnownWebsite("social_only", "https://example.com")).toBe(true);
+    expect(hasKnownWebsite("social_only", "https://instagram.com/cafe")).toBe(false);
+    expect(hasKnownWebsite("no_website_listed", null)).toBe(false);
+    expect(hasKnownWebsite(undefined, undefined)).toBe(false);
   });
 
   it("builds a short personalised follow-up", () => {

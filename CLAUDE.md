@@ -82,6 +82,8 @@ Google-specific sections below.
   (owner's choice, 2026-11-03): every first message includes a "Google
   reviews" line (`first.reviews`, editable or emptied on the Templates page)
   saying the business has impressive Google reviews but no website was found.
+  It is left out when a website is known (`website_listed`, or a non-social
+  website URL on the lead).
 - **Deal stages** after `replied`: `meeting`, `proposal_sent`, `won`, `lost`
   (migration 010), with `deal_value` in SAR.
 - **Login**: one operator password (`APP_PASSWORD_HASH`, `SESSION_SECRET`,

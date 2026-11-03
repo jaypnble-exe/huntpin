@@ -192,7 +192,7 @@ export function TemplatesEditor() {
                     "Google reviews line",
                     t.first.reviews,
                     (v) => update((c) => ({ ...c, first: { ...c.first, reviews: v } })),
-                    "Added to every first message. Empty it to leave it out.",
+                    "Added to first messages, except for businesses with a known website. Empty it to leave it out.",
                   )}
                   {paragraph("About you", t.first.intro, (v) => update((c) => ({ ...c, first: { ...c.first, intro: v } })))}
                   {paragraph(
