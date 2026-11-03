@@ -19,7 +19,7 @@ import {
   cn,
 } from "@/components/ui";
 import { DEFAULT_AREA, validateBBox, type BBox } from "@/lib/places/areas";
-import { CATEGORY_GROUPS, isCategoryGroup } from "@/lib/places/categories";
+import { CATEGORY_GROUPS, type CategoryGroup } from "@/lib/places/categories";
 import {
   CONFIDENCE_OPTIONS,
   DEFAULT_FILTERS,
@@ -80,6 +80,39 @@ function activeFilterCount(filters: PlaceFilters): number {
     filters.hideChains !== d.hideChains,
     filters.source !== d.source,
   ].filter(Boolean).length;
+}
+
+/** One-tap category filter, shown along the top of the map. */
+function CategoryPills({
+  value,
+  onChange,
+  className,
+}: {
+  value: CategoryGroup | null;
+  onChange: (next: CategoryGroup | null) => void;
+  className?: string;
+}) {
+  const options: { key: CategoryGroup | null; label: string }[] = [
+    { key: null, label: "All categories" },
+    ...(Object.entries(CATEGORY_GROUPS) as [CategoryGroup, { label: string }][]).map(([key, group]) => ({
+      key,
+      label: group.label,
+    })),
+  ];
+  return (
+    <div role="group" aria-label="Category" className={cn("flex gap-1.5 overflow-x-auto pb-1", className)}>
+      {options.map((option) => (
+        <ToggleChip
+          key={option.key ?? "all"}
+          pressed={value === option.key}
+          onToggle={() => onChange(option.key)}
+          className="shrink-0 whitespace-nowrap py-1.5 shadow-sm"
+        >
+          {option.label}
+        </ToggleChip>
+      ))}
+    </div>
+  );
 }
 
 export function PlacesExplorer() {
@@ -154,7 +187,9 @@ export function PlacesExplorer() {
 
   const handleBounds = useCallback((next: BBox) => setBBox(next), []);
   const togglePanel = (next: "filters" | "best") => setPanel((current) => (current === next ? "none" : next));
-  const filterCount = activeFilterCount(filters);
+  // The category has its own pills, so the Filters badge leaves it out.
+  const filterCount = activeFilterCount({ ...filters, category: DEFAULT_FILTERS.category });
+  const setCategory = (category: CategoryGroup | null) => setFilters((f) => ({ ...f, category }));
 
   return (
     <div className="relative h-[calc(100dvh-3rem)] w-full overflow-hidden">
@@ -164,6 +199,13 @@ export function PlacesExplorer() {
         selectedId={selectedId}
         onBoundsChange={handleBounds}
         onSelect={setSelectedId}
+      />
+
+      {/* Category pills: beside the toolbar on wide screens, under the search box on small ones. */}
+      <CategoryPills
+        value={filters.category}
+        onChange={setCategory}
+        className="absolute top-[1.375rem] right-14 left-[calc(24rem+1.5rem)] z-10 hidden lg:flex"
       />
 
       {/* Toolbar, panels and status */}
@@ -207,6 +249,8 @@ export function PlacesExplorer() {
             Best
           </Button>
         </Card>
+
+        <CategoryPills value={filters.category} onChange={setCategory} className="lg:hidden" />
 
         {panel === "best" && (
           <Card id="best-leads" className="max-h-[55dvh] overflow-y-auto p-3">
@@ -302,22 +346,6 @@ export function PlacesExplorer() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Category">
-                <Select
-                  value={filters.category ?? ""}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setFilters((f) => ({ ...f, category: isCategoryGroup(value) ? value : null }));
-                  }}
-                >
-                  <option value="">All</option>
-                  {Object.entries(CATEGORY_GROUPS).map(([key, group]) => (
-                    <option key={key} value={key}>
-                      {group.label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
               <Field label="Still exists (Overture)">
                 <Select
                   value={filters.minConfidence}

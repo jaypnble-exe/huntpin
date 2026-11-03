@@ -51,11 +51,13 @@ export function ToggleChip({
   pressed,
   onToggle,
   dot,
+  className,
   children,
 }: {
   pressed: boolean;
   onToggle: () => void;
   dot?: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -68,6 +70,7 @@ export function ToggleChip({
         pressed
           ? "border-primary/40 bg-info-soft text-foreground"
           : "border-border bg-surface text-muted hover:text-foreground",
+        className,
       )}
     >
       {dot && (
