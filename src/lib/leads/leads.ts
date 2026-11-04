@@ -35,6 +35,18 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   not_a_fit: "Not a fit",
 };
 
+/** Statuses that mean the business has been messaged (a check mark on the map). */
+export const CONTACTED_STATUSES = [
+  "contacted",
+  "follow_up",
+  "replied",
+  "meeting",
+  "proposal_sent",
+  "won",
+  "lost",
+  "not_interested",
+] as const satisfies readonly LeadStatus[];
+
 /** Pipeline columns: a reply, then the deal stages. */
 export const DEAL_STAGES = ["replied", "meeting", "proposal_sent", "won", "lost"] as const satisfies readonly LeadStatus[];
 export type DealStage = (typeof DEAL_STAGES)[number];

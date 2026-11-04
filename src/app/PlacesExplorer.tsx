@@ -9,6 +9,7 @@ import {
   Card,
   Checkbox,
   Field,
+  IconCheck,
   IconFilter,
   IconSearch,
   IconStar,
@@ -421,6 +422,12 @@ export function PlacesExplorer() {
           <li className="flex items-center gap-2">
             <span aria-hidden className="inline-block h-3 w-3 rounded-full" style={{ background: SAVED_LEAD_COLOR }} />
             Saved lead
+          </li>
+          <li className="flex items-center gap-2">
+            <span aria-hidden className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-neutral-500 text-white">
+              <IconCheck className="h-2.5 w-2.5" />
+            </span>
+            Contacted
           </li>
         </ul>
       </Card>

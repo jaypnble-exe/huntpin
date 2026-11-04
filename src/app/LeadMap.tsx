@@ -3,6 +3,7 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useRef } from "react";
+import { CONTACTED_STATUSES } from "@/lib/leads/leads";
 import type { Area, BBox } from "@/lib/places/areas";
 import type { PlaceFeatureCollection } from "@/lib/server/placesStore";
 import { INSTAGRAM_RING_COLOR, PRESENCE_STYLES, SAVED_LEAD_COLOR } from "./placeStyles";
@@ -16,6 +17,27 @@ const PLACES_ATTRIBUTION =
   "(Meta, Microsoft, AllThePlaces and others; Foursquare data © 2024 Foursquare Labs, Inc. All rights reserved.)";
 
 const SOURCE_ID = "places";
+const CHECK_IMAGE = "contacted-check";
+
+/** A white check mark with a soft dark edge, drawn once at 2x for sharp pins. */
+function checkImage(): ImageData {
+  const size = 32;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (const [color, width] of [["rgba(0,0,0,0.45)", 8], ["#ffffff", 4.5]] as const) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(8, 17);
+    ctx.lineTo(13.5, 22.5);
+    ctx.lineTo(24, 10);
+    ctx.stroke();
+  }
+  return ctx.getImageData(0, 0, size, size);
+}
 const EMPTY: PlaceFeatureCollection = { type: "FeatureCollection", features: [], truncated: false };
 
 export interface LeadMapProps {
@@ -97,6 +119,21 @@ export function LeadMap({ area, data, selectedId, onBoundsChange, onSelect }: Le
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 14, 5.5, 17, 9],
             "circle-stroke-width": ["case", ["get", "instagram"], 2.5, 1],
             "circle-stroke-color": ["case", ["get", "instagram"], INSTAGRAM_RING_COLOR, "#ffffff"],
+          },
+        });
+        // Check mark on places already contacted.
+        map!.addImage(CHECK_IMAGE, checkImage(), { pixelRatio: 2 });
+        map!.addLayer({
+          id: "places-contacted",
+          type: "symbol",
+          source: SOURCE_ID,
+          minzoom: 13,
+          filter: ["in", ["get", "leadStatus"], ["literal", [...CONTACTED_STATUSES]]],
+          layout: {
+            "icon-image": CHECK_IMAGE,
+            "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.5, 14, 0.6, 17, 1],
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
           },
         });
         map!.addLayer({
