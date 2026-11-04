@@ -172,11 +172,11 @@ export function OutreachDraft({
       title="Outreach draft"
       description={
         <>
-          Personalised with the business name
+          Uses the business name
           {confirmedSentences.length > 0
-            ? ` and ${confirmedSentences.length} finding${confirmedSentences.length === 1 ? "" : "s"} you confirmed`
+            ? `${kind === "first" && pitch !== "general" ? "," : " and"} ${confirmedSentences.length} finding${confirmedSentences.length === 1 ? "" : "s"} you confirmed`
             : ""}
-          {kind === "first" && pitch !== "general" ? `, with the “${pitchLabel(pitch)}” pitch` : ""}
+          {kind === "first" && pitch !== "general" ? ` and the “${pitchLabel(pitch)}” pitch` : ""}
           . You send it yourself, one business at a time.
         </>
       }
@@ -188,7 +188,7 @@ export function OutreachDraft({
           <Select
             aria-label="Pitch"
             title="Which pitch the first message uses. Change it if the business type in the data is wrong."
-            className="h-7 w-auto py-0 text-xs"
+            className="h-7 w-auto max-w-full py-0 text-xs"
             value={pitchChoice ?? "auto"}
             onChange={(e) => switchPitch(e.target.value)}
           >
@@ -203,7 +203,7 @@ export function OutreachDraft({
         )}
       </div>
       {PORTFOLIO_URL && (
-        <div className="mt-2">
+        <div className="mt-3">
           <Checkbox
             label="Include portfolio link"
             checked={includeLink}
@@ -213,7 +213,7 @@ export function OutreachDraft({
             {includeLink
               ? "Good for emails and follow-ups."
               : kind === "first"
-                ? "First WhatsApp to a stranger: the draft offers examples instead of a link (links from unknown numbers look like spam). Tick it for an email."
+                ? "Offers examples instead: links from unknown WhatsApp numbers look like spam. Tick it for an email."
                 : "No portfolio line in this follow-up."}
           </p>
         </div>
@@ -225,7 +225,7 @@ export function OutreachDraft({
         id="outreach-text"
         dir={OUTREACH_LANGUAGES[language].dir}
         lang={language}
-        className="mt-3 min-h-60"
+        className="mt-3 min-h-48 field-sizing-content"
         value={text}
         onChange={(e) => {
           setText(e.target.value);
@@ -258,15 +258,17 @@ export function OutreachDraft({
         )}
         {copied === "failed" && <InlineMessage tone="danger">Copy failed. Select the text and copy it manually.</InlineMessage>}
       </div>
-      {emailLinks.length > 0 && (
+      {(whatsappLinks.length > 0 || emailLinks.length > 0) && (
         <p className="mt-2 text-xs text-muted">
-          Email opens your own mail app with this message filled in, for this one business. Many listed emails are the
-          owner&apos;s personal inbox: keep it short, relevant, and stop if they ask.
-        </p>
-      )}
-      {whatsappLinks.length > 0 && (
-        <p className="mt-2 text-xs text-muted">
-          WhatsApp opens with the message filled in; you review it and press send. If emojis show as “?”, use Copy and paste instead.
+          {whatsappLinks.length > 0 && emailLinks.length > 0
+            ? "WhatsApp and Email open"
+            : whatsappLinks.length > 0
+              ? "WhatsApp opens"
+              : "Email opens"}{" "}
+          your own app with this message filled in; you review it and press send.
+          {whatsappLinks.length > 0 && " If emojis show as “?”, use Copy and paste instead."}
+          {emailLinks.length > 0 &&
+            " Many listed emails are the owner’s personal inbox: keep it short, relevant, and stop if they ask."}
         </p>
       )}
     </Section>

@@ -2,23 +2,21 @@
 
 import { useMemo, useState } from "react";
 import { InstagramBadge, LeadStatusBadge, PresenceBadge, ScorePill } from "@/components/leads/LeadBadges";
+import Link from "next/link";
 import {
   Button,
-  ButtonLink,
   Drawer,
-  ExternalButtonLink,
   Field,
   IconCheck,
   IconExternal,
-  IconMail,
   IconMapPin,
-  IconPhone,
   IconTrash,
   InlineMessage,
   Input,
+  Section,
   Select,
 } from "@/components/ui";
-import { MAX_FOLLOW_UPS, wantsFollowUp } from "@/lib/leads/followUps";
+import { wantsFollowUp } from "@/lib/leads/followUps";
 import {
   canDraftOutreach,
   DEAL_CURRENCY,
@@ -29,12 +27,12 @@ import {
   type LeadStatus,
 } from "@/lib/leads/leads";
 import { categoryGroupOf, humanizeCategory } from "@/lib/places/categories";
-import { googleMapsSearchUrl, telHref } from "@/lib/places/links";
-import { SocialLinks } from "@/components/leads/SocialLinks";
-import { mailtoHref } from "@/lib/places/emails";
+import { googleMapsSearchUrl } from "@/lib/places/links";
 import type { Lead } from "@/lib/server/leadsStore";
 import { hasKnownWebsite } from "@/lib/leads/outreach";
 import { pitchTypeOf } from "@/lib/leads/pitchTypes";
+import { LeadActivity } from "./LeadActivity";
+import { LeadContact } from "./LeadContact";
 import { OutreachDraft } from "./OutreachDraft";
 import { leadOpportunities, WebsiteCheck } from "./WebsiteCheck";
 
@@ -144,14 +142,7 @@ export function LeadEditor({
               </Select>
             </Field>
             {isDealStage(status) ? (
-              <Field
-                label={`Deal value (${DEAL_CURRENCY})`}
-                hint={
-                  lead.closed_at && (status === "won" || status === "lost")
-                    ? `${status === "won" ? "Won" : "Lost"} on ${new Date(lead.closed_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}.`
-                    : undefined
-                }
-              >
+              <Field label={`Deal value (${DEAL_CURRENCY})`}>
                 <Input
                   type="number"
                   inputMode="decimal"
@@ -164,10 +155,7 @@ export function LeadEditor({
               </Field>
             ) : (
               wantsFollowUp(status) && (
-                <Field
-                  label="Next follow-up"
-                  hint={`${Math.min(lead.follow_up_count, MAX_FOLLOW_UPS)} of ${MAX_FOLLOW_UPS} follow-ups sent.`}
-                >
+                <Field label="Next follow-up">
                   <Input type="date" value={followUpOn} onChange={(e) => setFollowUpOn(e.target.value)} />
                 </Field>
               )
@@ -196,56 +184,54 @@ export function LeadEditor({
         </form>
       }
       subtitle={
-        <div className="flex flex-wrap items-center gap-1.5">
-          {place && <ScorePill score={place.lead_score} />}
-          <LeadStatusBadge status={lead.lead_status} />
-          {place && <PresenceBadge presence={place.web_presence} />}
-          {place?.has_instagram && <InstagramBadge />}
+        <div className="space-y-2">
           {place && (
-            <span className="text-xs">
+            <p>
               {humanizeCategory(place.basic_category)} · {place.area}
-            </span>
+            </p>
           )}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {place && (
+              <span className="inline-flex">
+                <span className="sr-only">Lead score </span>
+                <ScorePill score={place.lead_score} />
+              </span>
+            )}
+            <LeadStatusBadge status={lead.lead_status} />
+            {place && <PresenceBadge presence={place.web_presence} />}
+            {place?.has_instagram && <InstagramBadge />}
+          </div>
         </div>
       }
     >
-      <div className="space-y-6">
+      <div className="space-y-5">
         {place && (
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <ButtonLink
-                size="sm"
-                href={`/?place=${encodeURIComponent(lead.overture_place_id ?? "")}&lat=${place.lat}&lon=${place.lon}`}
-              >
-                <IconMapPin />
-                Show on map
-              </ButtonLink>
-              <ExternalButtonLink size="sm" href={googleMapsSearchUrl(place.name, place.area, place.lat, place.lon)}>
-                <IconExternal />
-                Google Maps
-              </ExternalButtonLink>
-              {place.phones.map((phone) => {
-                const href = telHref(phone);
-                return href ? (
-                  <a key={phone} href={href} dir="ltr" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-strong px-2.5 text-xs font-medium hover:bg-surface-muted">
-                    <IconPhone />
-                    {phone}
-                  </a>
-                ) : null;
-              })}
-              {(place.emails ?? []).map((email) => {
-                const href = mailtoHref(email);
-                return href ? (
-                  <a key={email} href={href} dir="ltr" title={email} className="inline-flex h-8 max-w-56 items-center gap-1.5 rounded-md border border-border-strong px-2.5 text-xs font-medium hover:bg-surface-muted">
-                    <IconMail />
-                    <span className="truncate">{email}</span>
-                  </a>
-                ) : null;
-              })}
-            </div>
-            <SocialLinks urls={links} />
-          </div>
+          <nav aria-label="Find this business" className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+            <Link
+              href={`/?place=${encodeURIComponent(lead.overture_place_id ?? "")}&lat=${place.lat}&lon=${place.lon}`}
+              className="inline-flex items-center gap-1.5 font-medium text-info hover:underline"
+            >
+              <IconMapPin />
+              Show on map
+            </Link>
+            <a
+              href={googleMapsSearchUrl(place.name, place.area, place.lat, place.lon)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 font-medium text-info hover:underline"
+            >
+              <IconExternal />
+              Find on Google Maps
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          </nav>
         )}
+
+        {place && <LeadContact phones={place.phones} emails={place.emails ?? []} links={links} />}
+
+        <div className={place ? "border-t border-border pt-5" : undefined}>
+          <LeadActivity lead={lead} />
+        </div>
 
         <div className="border-t border-border pt-5">
           <WebsiteCheck lead={lead} onChecked={applyLead} />
@@ -264,15 +250,22 @@ export function LeadEditor({
               defaultKind={lead.first_contacted_at ? "follow_up" : "first"}
             />
           ) : (
-            <p className="text-sm text-muted">No outreach drafts for leads marked “{LEAD_STATUS_LABELS[status]}”.</p>
+            <Section title="Outreach draft">
+              <p className="text-sm text-muted">No drafts for leads marked “{LEAD_STATUS_LABELS[status]}”.</p>
+            </Section>
           )}
         </div>
 
-        <div className="border-t border-border pt-4">
-          <Button variant="danger" size="sm" disabled={busy} onClick={remove}>
-            <IconTrash />
+        <div className="border-t border-border pt-3">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={remove}
+            className="-ml-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:pointer-events-none disabled:opacity-50"
+          >
+            <IconTrash className="h-3.5 w-3.5" />
             Delete lead
-          </Button>
+          </button>
         </div>
       </div>
     </Drawer>

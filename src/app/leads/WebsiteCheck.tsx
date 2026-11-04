@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { WebsiteStatusBadge } from "@/components/leads/LeadBadges";
 import { Badge, Button, IconGlobe, InlineMessage, Input, Section, cn } from "@/components/ui";
+import { fullDateTime, relativeDay } from "@/lib/leads/activity";
 import { isSocialUrl } from "@/lib/places/webPresence";
 import type { Lead } from "@/lib/server/leadsStore";
 import { deriveOpportunities, type WebsiteSignals } from "@/lib/websiteSignals";
@@ -26,6 +27,13 @@ const ERROR_DESCRIPTIONS: Record<string, string> = {
   unsupported_redirect: "A redirect pointed somewhere that is not checked (non-web scheme or port).",
   blocked_address: "The site points to a private or reserved network address, so it was not contacted.",
 };
+
+/** "today", "3 days ago" or "on 12 Oct", to follow the word "checked". */
+function checkedWhen(timestamp: string): string {
+  const when = relativeDay(timestamp, new Date());
+  if (when === "Today" || when === "Yesterday") return when.toLowerCase();
+  return when.endsWith("ago") ? when : `on ${when}`;
+}
 
 export function leadOpportunities(lead: Lead) {
   return deriveOpportunities({
@@ -71,14 +79,12 @@ export function WebsiteCheck({ lead, onChecked }: { lead: Lead; onChecked: (lead
   return (
     <Section
       title="Website"
-      description="Reads at most the first 256 KB of the homepage. Only yes/no signals are stored, never page content."
+      description={
+        noWebsiteListed && !lead.website_checked_at
+          ? "No website listed. If you find one, enter it to check the homepage."
+          : "Checks the homepage only. Stores yes/no signals, never page content."
+      }
     >
-      {noWebsiteListed && !lead.website_checked_at && (
-        <p className="mb-2 flex items-center gap-2 text-xs text-muted">
-          <WebsiteStatusBadge status="not_listed" /> If you find their site, enter it below.
-        </p>
-      )}
-
       <form onSubmit={check} className="flex gap-2">
         <label className="sr-only" htmlFor="website-url">
           Website URL
@@ -110,7 +116,12 @@ export function WebsiteCheck({ lead, onChecked }: { lead: Lead; onChecked: (lead
           <p className="flex flex-wrap items-center gap-2">
             <WebsiteStatusBadge status={lead.website_status} />
             {lead.website_http_status !== null && <span>HTTP {lead.website_http_status}</span>}
-            <span className="text-muted">checked {new Date(lead.website_checked_at).toLocaleString()}</span>
+            <span className="text-muted">
+              checked{" "}
+              <time dateTime={lead.website_checked_at} title={fullDateTime(lead.website_checked_at)}>
+                {checkedWhen(lead.website_checked_at)}
+              </time>
+            </span>
           </p>
           {lead.website_error_category && (
             <p>{ERROR_DESCRIPTIONS[lead.website_error_category] ?? lead.website_error_category}</p>
