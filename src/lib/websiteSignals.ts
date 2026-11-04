@@ -142,6 +142,12 @@ export interface Opportunity {
   sentence?: { en: string; ar: string };
 }
 
+/** Draft sentence for a website that did not load (from a check, or seen by the operator). */
+export const WEBSITE_NOT_WORKING_SENTENCE = {
+  en: "I tried to visit your website and it didn’t load for me.",
+  ar: "حاولت زيارة موقعكم ولكنه لم يفتح لدي.",
+};
+
 const BOOKING_CATEGORY = /dental|clinic|health|medical|care|beauty|salon|spa|wellness|gym|fitness/i;
 const FOOD_CATEGORY = /restaurant|eatery|cafe|coffee|food|bakery|dessert|juice|bar|lounge/i;
 
@@ -164,10 +170,7 @@ export function deriveOpportunities({
       key: "unreachable",
       title: "Website did not load",
       detail: "Check it yourself in a browser first; it may be a temporary problem.",
-      sentence: {
-        en: "I tried to visit your website and it didn’t load for me.",
-        ar: "حاولت زيارة موقعكم ولكنه لم يفتح لدي.",
-      },
+      sentence: WEBSITE_NOT_WORKING_SENTENCE,
     });
   }
   if (errorCategory === "tls_error") {
