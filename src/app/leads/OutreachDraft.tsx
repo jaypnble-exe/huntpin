@@ -35,6 +35,7 @@ import {
 } from "@/lib/leads/outreach";
 import { PITCH_TYPE_KEYS, PITCH_TYPES, type PitchType } from "@/lib/leads/pitchTypes";
 import { safeHref } from "@/lib/places/links";
+import { WEBSITE_NOT_WORKING_SENTENCE } from "@/lib/websiteSignals";
 import { useOutreachTemplates } from "./useOutreachTemplates";
 
 // From PORTFOLIO_URL in .env.local (see next.config.ts). Empty when not set.
@@ -91,19 +92,27 @@ export function OutreachDraft({
   const [pitchChoice, setPitchChoice] = useState<PitchChoice | null>(null);
   const automaticPitch = autoPitch(templates[language], pitchType, category);
   const pitch = pitchChoice ?? automaticPitch;
+  // The operator saw the site fail to load. Hidden when a website check already added that line.
+  const [brokenSite, setBrokenSite] = useState(false);
+  const brokenSiteConfirmed = confirmedSentences.some((s) => s.en === WEBSITE_NOT_WORKING_SENTENCE.en);
+  const offerBrokenSite = hasWebsite && !brokenSiteConfirmed;
+  const sentences = useMemo(
+    () => [...confirmedSentences, ...(offerBrokenSite && brokenSite ? [WEBSITE_NOT_WORKING_SENTENCE] : [])],
+    [confirmedSentences, offerBrokenSite, brokenSite],
+  );
   const generated = useMemo(
     () =>
       buildDraft({
         language,
         name: namePart(name, language),
-        sentences: confirmedSentences.map((s) => s[language]),
+        sentences: sentences.map((s) => s[language]),
         kind,
         portfolio: { mode: portfolioMode, url: PORTFOLIO_URL },
         pitch,
         hasWebsite,
         templates,
       }),
-    [language, name, confirmedSentences, kind, portfolioMode, pitch, hasWebsite, templates],
+    [language, name, sentences, kind, portfolioMode, pitch, hasWebsite, templates],
   );
   const [text, setText] = useState(generated);
   const [edited, setEdited] = useState(false);
@@ -133,6 +142,13 @@ export function OutreachDraft({
     if (edited && !window.confirm("Change the portfolio line? Your edits to this draft will be replaced.")) return;
     setEdited(false);
     setLinkChoice(next);
+    setCopied("idle");
+  }
+
+  function toggleBrokenSite(next: boolean) {
+    if (edited && !window.confirm("Change the website line? Your edits to this draft will be replaced.")) return;
+    setEdited(false);
+    setBrokenSite(next);
     setCopied("idle");
   }
 
@@ -173,8 +189,8 @@ export function OutreachDraft({
       description={
         <>
           Uses the business name
-          {confirmedSentences.length > 0
-            ? `${kind === "first" && pitch !== "general" ? "," : " and"} ${confirmedSentences.length} finding${confirmedSentences.length === 1 ? "" : "s"} you confirmed`
+          {sentences.length > 0
+            ? `${kind === "first" && pitch !== "general" ? "," : " and"} ${sentences.length} finding${sentences.length === 1 ? "" : "s"} you confirmed`
             : ""}
           {kind === "first" && pitch !== "general" ? ` and the “${pitchLabel(pitch)}” pitch` : ""}
           . You send it yourself, one business at a time.
@@ -202,6 +218,18 @@ export function OutreachDraft({
           </Select>
         )}
       </div>
+      {offerBrokenSite && (
+        <div className="mt-3">
+          <Checkbox
+            label="Their website isn’t working"
+            checked={brokenSite}
+            onChange={(e) => toggleBrokenSite(e.target.checked)}
+          />
+          <p className="mt-0.5 pl-6 text-xs text-muted">
+            Adds “{WEBSITE_NOT_WORKING_SENTENCE.en}” Tick it only after opening the site yourself.
+          </p>
+        </div>
+      )}
       {PORTFOLIO_URL && (
         <div className="mt-3">
           <Checkbox
