@@ -25,6 +25,9 @@ export interface LeadPlace {
   source_licenses: string[];
   lead_score: number;
   chain_size: number;
+  confidence: number | null;
+  operating_status: string | null;
+  refreshed_on: string | null;
 }
 
 export interface Lead {
@@ -67,7 +70,7 @@ const LEAD_COLUMNS =
   "id,label,operator_notes,lead_status,first_contacted_at,last_contacted_at,created_at,updated_at,overture_place_id," +
   "website_url,website_status,website_http_status,website_final_url,website_error_category,website_signals,website_checked_at,confirmed_opportunities,follow_up_on,follow_up_count,deal_value,status_changed_at,closed_at";
 export const PLACE_COLUMNS =
-  "name,basic_category,web_presence,has_instagram,phones,emails,websites,socials,lat,lon,area,source_datasets,source_licenses,lead_score,chain_size";
+  "name,basic_category,web_presence,has_instagram,phones,emails,websites,socials,lat,lon,area,source_datasets,source_licenses,lead_score,chain_size,confidence,operating_status,refreshed_on";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -236,21 +239,26 @@ export async function deleteLead(supabase: SupabaseClient, id: string): Promise<
 }
 
 export const NOT_A_FIT_NOTE = "Has a website (checked on Google Maps).";
+export const INACTIVE_NOTE = "Looks inactive (socials or listing out of date).";
+export type NotAFitReason = "website" | "inactive";
 
 /**
- * Marks a place as not a prospect because it already has a website: saves it
- * as a lead (or reuses the existing one) with status "not_a_fit", which hides
- * it from the map, stops reminders and drafts, and records the URL if given.
+ * Marks a place as not a prospect because it already has a website (or looks
+ * inactive): saves it as a lead (or reuses the existing one) with status
+ * "not_a_fit", which hides it from the map, stops reminders and drafts, notes
+ * the reason, and records the URL if given.
  */
 export async function markPlaceNotAFit(
   supabase: SupabaseClient,
   placeId: string,
   websiteUrl: string | null,
+  reason: NotAFitReason = "website",
 ): Promise<Lead> {
   const { lead } = await createLeadFromPlace(supabase, placeId);
-  const note = lead.operator_notes?.includes(NOT_A_FIT_NOTE)
+  const reasonNote = reason === "inactive" ? INACTIVE_NOTE : NOT_A_FIT_NOTE;
+  const note = lead.operator_notes?.includes(reasonNote)
     ? lead.operator_notes
-    : [lead.operator_notes, NOT_A_FIT_NOTE].filter(Boolean).join("\n").slice(0, 2000);
+    : [lead.operator_notes, reasonNote].filter(Boolean).join("\n").slice(0, 2000);
   const update: Record<string, unknown> = { lead_status: "not_a_fit", follow_up_on: null, operator_notes: note };
   if (websiteUrl) update.website_url = websiteUrl;
   const { error } = await supabase.from("leads").update(update).eq("id", lead.id);

@@ -16,6 +16,8 @@ export interface PlaceFilters {
   /** Hide places whose name appears at 3+ locations (chains). */
   hideChains: boolean;
   source: SourceFilter;
+  /** Hide Foursquare listings not updated in the last year. */
+  hideStale: boolean;
 }
 
 export const SOURCE_FILTERS = ["all", "overture", "foursquare"] as const;
@@ -33,6 +35,7 @@ export const DEFAULT_FILTERS: PlaceFilters = {
   saved: "all",
   hideChains: true,
   source: "all",
+  hideStale: false,
 };
 
 export const CONFIDENCE_OPTIONS = [0, 0.5, 0.7, 0.9] as const;
@@ -48,6 +51,7 @@ export function toSearchParams(bbox: BBox, filters: PlaceFilters): URLSearchPara
   if (filters.saved !== "all") params.set("saved", filters.saved);
   if (!filters.hideChains) params.set("chains", "show");
   if (filters.source !== "all") params.set("source", filters.source);
+  if (filters.hideStale) params.set("fresh", "1");
   const name = filters.nameQuery.trim();
   if (name) params.set("q", name);
   return params;
@@ -105,6 +109,7 @@ export function parsePlaceQuery(params: URLSearchParams): ParsedPlaceQuery {
       saved: saved as SavedFilter,
       hideChains: params.get("chains") !== "show",
       source: source as SourceFilter,
+      hideStale: params.get("fresh") === "1",
     },
   };
 }

@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/leads { placeId }                              save an imported place as a lead
-// POST /api/leads { placeId, notAFit: { websiteUrl? } }   mark it Not a fit (has a website); hides it
+// POST /api/leads { placeId, notAFit: { websiteUrl?, reason? } }
+//   mark it Not a fit (has a website, or reason "inactive"); hides it
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -55,8 +56,12 @@ export async function POST(request: Request) {
     } else if (raw !== undefined && raw !== null && raw !== "") {
       return NextResponse.json({ ok: false, message: "websiteUrl must be a string." }, { status: 400 });
     }
+    const reason = (notAFit as { reason?: unknown }).reason ?? "website";
+    if (reason !== "website" && reason !== "inactive") {
+      return NextResponse.json({ ok: false, message: "reason must be website or inactive." }, { status: 400 });
+    }
     try {
-      return NextResponse.json({ lead: await markPlaceNotAFit(getSupabaseAdmin(), placeId, websiteUrl) });
+      return NextResponse.json({ lead: await markPlaceNotAFit(getSupabaseAdmin(), placeId, websiteUrl, reason) });
     } catch (error) {
       if (error instanceof NotFoundError) return NextResponse.json({ ok: false, message: "Place not found." }, { status: 404 });
       return NextResponse.json({ ok: false, message: UNAVAILABLE }, { status: 503 });

@@ -80,6 +80,7 @@ function activeFilterCount(filters: PlaceFilters): number {
     filters.saved !== d.saved,
     filters.hideChains !== d.hideChains,
     filters.source !== d.source,
+    filters.hideStale !== d.hideStale,
   ].filter(Boolean).length;
 }
 
@@ -318,6 +319,12 @@ export function PlacesExplorer() {
                 checked={!filters.hideChains}
                 onChange={(event) => setFilters((f) => ({ ...f, hideChains: !event.target.checked }))}
               />
+              <Checkbox
+                label="Hide listings not updated in the last year"
+                checked={filters.hideStale}
+                onChange={(event) => setFilters((f) => ({ ...f, hideStale: event.target.checked }))}
+              />
+              <p className="pl-6 text-xs text-muted">Foursquare places only; Overture records no update date.</p>
             </div>
 
             <div>

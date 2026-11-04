@@ -294,6 +294,19 @@ function Details({ place }: { place: PlaceDetails }) {
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
         <dt className="text-muted">Still exists</dt>
         <dd>{place.confidence === null ? "Not scored" : `${Math.round(place.confidence * 100)}%`}</dd>
+        {place.refreshed_on && (
+          <>
+            <dt className="text-muted">Listing updated</dt>
+            <dd>
+              {new Date(`${place.refreshed_on.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                timeZone: "UTC",
+              })}
+            </dd>
+          </>
+        )}
         {place.operating_status && (
           <>
             <dt className="text-muted">Operating status</dt>

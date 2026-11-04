@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { InstagramBadge, LeadStatusBadge, PresenceBadge, ScorePill } from "@/components/leads/LeadBadges";
+import { FreshnessBadge, InstagramBadge, LeadStatusBadge, PresenceBadge, ScorePill } from "@/components/leads/LeadBadges";
 import Link from "next/link";
 import {
   Button,
@@ -99,6 +99,27 @@ export function LeadEditor({
     status !== lead.lead_status ||
     followUpOn !== (lead.follow_up_on ?? "") ||
     dealValue !== toValueInput(lead.deal_value);
+
+  async function markInactive() {
+    if (!lead.overture_place_id) return;
+    if (!window.confirm("Mark as inactive? It will be hidden from the map, the queue and your leads list.")) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId: lead.overture_place_id, notAFit: { reason: "inactive" } }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.message ?? "Could not save.");
+      onSaved(result.lead as Lead);
+      onClose();
+    } catch (error) {
+      setMessage({ kind: "error", text: error instanceof Error ? error.message : "Could not save." });
+      setBusy(false);
+    }
+  }
 
   async function remove() {
     if (!window.confirm("Delete this lead? Its status and contact history will be lost.")) return;
@@ -200,6 +221,7 @@ export function LeadEditor({
             <LeadStatusBadge status={lead.lead_status} />
             {place && <PresenceBadge presence={place.web_presence} />}
             {place?.has_instagram && <InstagramBadge />}
+            {place && <FreshnessBadge place={place} />}
           </div>
         </div>
       }
@@ -228,6 +250,20 @@ export function LeadEditor({
         )}
 
         {place && <LeadContact phones={place.phones} emails={place.emails ?? []} links={links} />}
+
+        {place && lead.overture_place_id && lead.lead_status !== "not_a_fit" && (
+          <div className="-mt-2 flex flex-wrap items-center gap-x-2 text-xs text-muted">
+            Socials dead or no posts in a long time?
+            <button
+              type="button"
+              disabled={busy}
+              onClick={markInactive}
+              className="rounded-md px-1.5 py-1 font-medium text-warning transition-colors hover:bg-warning-soft disabled:pointer-events-none disabled:opacity-50"
+            >
+              Mark as inactive
+            </button>
+          </div>
+        )}
 
         <div className={place ? "border-t border-border pt-5" : undefined}>
           <LeadActivity lead={lead} />

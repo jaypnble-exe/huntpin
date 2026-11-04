@@ -100,7 +100,13 @@ export function LeadsDashboard() {
   const repliedCount = leads.filter((lead) => isDealStage(lead.lead_status)).length;
   const selected = leads.find((lead) => lead.id === selectedId) ?? null;
   const select = (id: string | null) => router.replace(id ? `/leads?lead=${id}` : "/leads", { scroll: false });
-  const updateLead = (lead: Lead) => setLeads((all) => all.map((l) => (l.id === lead.id ? lead : l)));
+  const updateLead = (lead: Lead) =>
+    setLeads((all) =>
+      // Not a fit leads (e.g. marked inactive) leave the default list straight away.
+      lead.lead_status === "not_a_fit" && status !== "not_a_fit"
+        ? all.filter((l) => l.id !== lead.id)
+        : all.map((l) => (l.id === lead.id ? lead : l)),
+    );
   const filtersActive = Boolean(status || presence || category || dueOnly);
 
   return (

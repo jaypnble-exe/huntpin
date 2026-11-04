@@ -15,6 +15,7 @@ describe("place filters", () => {
       saved: "hide" as const,
       hideChains: false,
       source: "foursquare" as const,
+      hideStale: true,
     };
     const parsed = parsePlaceQuery(toSearchParams(JEDDAH_VIEW, filters));
     expect(parsed).toEqual({ ok: true, bbox: JEDDAH_VIEW, filters });

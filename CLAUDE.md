@@ -55,8 +55,13 @@ Google-specific sections below.
   and Foursquare with pruning. Pruning never removes places saved as leads,
   and is skipped when an import is under half the existing size.
 - **Lead status `not_a_fit`** (e.g. already has a website, found on Google
-  Maps): hidden from the map and the default leads list; no drafts, reminders
-  or batch checks.
+  Maps, or "Looks inactive": socials dead or not updated): hidden from the map
+  and the default leads list; no drafts, reminders or batch checks. The reason
+  is noted on the lead.
+- **Activity signals** (`src/lib/places/freshness.ts`): Foursquare's last
+  update date, Overture's existence score and operating status. They are the
+  sources' estimates, never proof a business is open or closed; the operator
+  decides after checking the socials themselves.
 - **Emails** (`places.emails`, from Overture `emails` / Foursquare `email`) are
   shown as `mailto:` links that open the operator's own mail app for one
   recipient with the draft filled in. Never send email from the app, never

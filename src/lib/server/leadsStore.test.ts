@@ -159,4 +159,19 @@ describe("markPlaceNotAFit", () => {
       website_url: "https://basiccafe.sa/",
     });
   });
+
+  it("notes when the business looks inactive", async () => {
+    const { supabase, calls } = setup(({ method, url }) => {
+      if (url.pathname.endsWith("/places")) return { body: { id: "place-1", name: "Basic Cafe", basic_category: "cafe", area: "Jeddah" } };
+      if (method === "POST") return { status: 201, body: { id: LEAD_ID } };
+      if (method === "PATCH") return { body: [] };
+      return { body: { ...LEAD, operator_notes: null } };
+    });
+    await markPlaceNotAFit(supabase, "place-1", null, "inactive");
+    expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({
+      lead_status: "not_a_fit",
+      follow_up_on: null,
+      operator_notes: "Looks inactive (socials or listing out of date).",
+    });
+  });
 });

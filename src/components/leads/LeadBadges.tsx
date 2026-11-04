@@ -1,6 +1,7 @@
 import { PRESENCE_STYLES } from "@/app/placeStyles";
 import { Badge, cn, type BadgeTone } from "@/components/ui";
 import { LEAD_STATUS_LABELS, type LeadStatus } from "@/lib/leads/leads";
+import { listingFreshness, type FreshnessInput } from "@/lib/places/freshness";
 import type { WebPresence } from "@/lib/places/webPresence";
 
 /** 0–100 lead score; colour shows strength at a glance. */
@@ -60,6 +61,20 @@ export function WebsiteStatusBadge({ status }: { status: string | null }) {
   if (!status) return <span className="text-xs text-muted">Not checked</span>;
   const info = WEBSITE_STATUS[status] ?? { label: status, tone: "neutral" as const };
   return <Badge tone={info.tone}>{info.label}</Badge>;
+}
+
+/** How current the listing looks in the open data; amber when it may be inactive. */
+export function FreshnessBadge({ place }: { place: FreshnessInput }) {
+  const freshness = listingFreshness(place);
+  if (!freshness) return null;
+  return (
+    <span title="From the open data, not proof the business is open or closed. Check their socials before contacting.">
+      <Badge tone={freshness.stale ? "warning" : "neutral"}>
+        {freshness.stale && <span className="sr-only">May be inactive: </span>}
+        {freshness.label}
+      </Badge>
+    </span>
+  );
 }
 
 export function InstagramBadge() {

@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BBox } from "../places/areas";
 import { CATEGORY_GROUPS } from "../places/categories";
+import { staleBefore } from "../places/freshness";
 import { CHAIN_MIN_LOCATIONS, parseTargetGroups, scoreParts, type ScorePart } from "../places/leadScore";
 import type { LeadStatus } from "../leads/leads";
 import type { PlaceFilters } from "../places/filters";
@@ -48,6 +49,7 @@ export interface PlaceDetails {
   has_instagram: boolean;
   confidence: number | null;
   operating_status: string | null;
+  refreshed_on: string | null;
   lat: number;
   lon: number;
   source: "overture" | "foursquare";
@@ -109,6 +111,8 @@ function buildMapQuery(supabase: SupabaseClient, [west, south, east, north]: BBo
   query = query.eq("hidden.lead_status", "not_a_fit").is("hidden", null);
   if (filters.source !== "all") query = query.eq("source", filters.source);
   if (filters.hideChains) query = query.lt("chain_size", CHAIN_MIN_LOCATIONS);
+  // Only Foursquare records a last-update date; places without one are kept.
+  if (filters.hideStale) query = query.or(`refreshed_on.is.null,refreshed_on.gte.${staleBefore()}`);
   // Best leads first, so truncation drops the weakest prospects.
   return query
     .order("lead_score", { ascending: false })
@@ -168,7 +172,7 @@ export async function getPlaceDetails(supabase: SupabaseClient, id: string): Pro
   const { data, error } = await supabase
     .from("places")
     .select(
-      "id,name,basic_category,websites,socials,phones,emails,web_presence,has_instagram,confidence,operating_status,lat,lon,source,area,source_release,source_datasets,source_licenses,lead_score,chain_size",
+      "id,name,basic_category,websites,socials,phones,emails,web_presence,has_instagram,confidence,operating_status,refreshed_on,lat,lon,source,area,source_release,source_datasets,source_licenses,lead_score,chain_size",
     )
     .eq("id", id)
     .maybeSingle();
@@ -183,6 +187,7 @@ export async function getPlaceDetails(supabase: SupabaseClient, id: string): Pro
       emailCount: place.emails?.length ?? 0,
       category: place.basic_category,
       confidence: place.confidence,
+      refreshedOn: place.refreshed_on,
       chainSize: place.chain_size,
     },
     parseTargetGroups(process.env.LEAD_TARGET_CATEGORIES),

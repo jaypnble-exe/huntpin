@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { InstagramBadge, LeadStatusBadge, PresenceBadge, ScorePill } from "@/components/leads/LeadBadges";
+import { FreshnessBadge, InstagramBadge, LeadStatusBadge, PresenceBadge, ScorePill } from "@/components/leads/LeadBadges";
 import { SocialLinks } from "@/components/leads/SocialLinks";
 import {
   Alert,
@@ -181,6 +181,11 @@ export function OutreachQueue() {
       await send("/api/leads", "POST", { placeId: item.placeId, notAFit: {} });
     });
 
+  const looksInactive = (item: QueueItem) =>
+    act(item, async () => {
+      await send("/api/leads", "POST", { placeId: item.placeId, notAFit: { reason: "inactive" } });
+    });
+
   const doNotContact = (item: QueueItem) => {
     if (!window.confirm("Mark as Do not contact? It will never appear in the queue again.")) return;
     return act(item, async () => {
@@ -303,6 +308,7 @@ export function OutreachQueue() {
           onSent={() => markSent(current)}
           onSkip={() => skip(current)}
           onHasWebsite={() => hasWebsite(current)}
+          onLooksInactive={() => looksInactive(current)}
           onDoNotContact={() => doNotContact(current)}
           onReplied={() => replied(current)}
         />
@@ -322,6 +328,7 @@ function QueueCard({
   onSent,
   onSkip,
   onHasWebsite,
+  onLooksInactive,
   onDoNotContact,
   onReplied,
 }: {
@@ -335,6 +342,7 @@ function QueueCard({
   onSent: () => void;
   onSkip: () => void;
   onHasWebsite: () => void;
+  onLooksInactive: () => void;
   onDoNotContact: () => void;
   onReplied: () => void;
 }) {
@@ -365,6 +373,7 @@ function QueueCard({
             <ScorePill score={place.lead_score} />
             <PresenceBadge presence={place.web_presence} />
             {place.has_instagram && <InstagramBadge />}
+            <FreshnessBadge place={place} />
             {lead ? <LeadStatusBadge status={lead.lead_status} /> : <Badge tone="neutral">Not saved yet</Badge>}
           </div>
           <p className="mt-2 text-sm text-muted">
@@ -421,7 +430,7 @@ function QueueCard({
           )}
         </div>
         <p className="text-xs text-muted">
-          Tip: a quick look on Google Maps shows whether they already have a website. If they do, press “Has a website”.
+          Tip: a quick look on Google Maps shows whether they already have a website. If they do, press “Has a website”. If their socials are dead or haven’t posted in a long time, press “Looks inactive”.
         </p>
       </Card>
 
@@ -462,6 +471,13 @@ function QueueCard({
               They replied
             </Button>
           )}
+          <Button
+            disabled={busy}
+            onClick={onLooksInactive}
+            title="Socials dead or no posts for a long time: hides it from the map and the queue"
+          >
+            Looks inactive
+          </Button>
           <Button variant="danger" disabled={busy} onClick={onDoNotContact}>
             Do not contact
           </Button>
