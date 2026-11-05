@@ -167,8 +167,9 @@ function LeadSave({ placeId, onSaved }: { placeId: string; onSaved?: () => void 
         </p>
         <p className="mt-1 text-xs text-muted">
           Changed your mind? Open the lead and set another status.{" "}
-          <a href={`/leads?lead=${state.lead.id}`} className="text-info hover:underline">
+          <a href={`/leads?lead=${state.lead.id}`} target="_blank" rel="noopener noreferrer" className="text-info hover:underline">
             Open lead
+            <span className="sr-only"> (opens in a new tab)</span>
           </a>
         </p>
       </div>
@@ -180,8 +181,9 @@ function LeadSave({ placeId, onSaved }: { placeId: string; onSaved?: () => void 
         <span className="flex items-center gap-2 text-sm">
           Saved as lead <LeadStatusBadge status={state.lead.lead_status} />
         </span>
-        <ButtonLink href={`/leads?lead=${state.lead.id}`} size="sm" variant="primary">
+        <ButtonLink href={`/leads?lead=${state.lead.id}`} target="_blank" rel="noopener noreferrer" size="sm" variant="primary">
           Open lead
+          <span className="sr-only"> (opens in a new tab)</span>
         </ButtonLink>
       </div>
     );
