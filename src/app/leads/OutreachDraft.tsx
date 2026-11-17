@@ -36,6 +36,7 @@ import {
 import { PITCH_TYPE_KEYS, PITCH_TYPES, type PitchType } from "@/lib/leads/pitchTypes";
 import { safeHref } from "@/lib/places/links";
 import { WEBSITE_NOT_WORKING_SENTENCE } from "@/lib/websiteSignals";
+import { useGmailStatus } from "./useGmailStatus";
 import { useOutreachTemplates } from "./useOutreachTemplates";
 
 // From PORTFOLIO_URL in .env.local (see next.config.ts). Empty when not set.
@@ -65,6 +66,7 @@ export function OutreachDraft({
   category = null,
   pitchType = null,
   hasWebsite = false,
+  placeId = null,
   onSendOpened,
 }: {
   phones: string[];
@@ -78,10 +80,16 @@ export function OutreachDraft({
   pitchType?: PitchType | null;
   /** A website is known: first messages leave out the Google reviews line. */
   hasWebsite?: boolean;
+  /** The business on the map: needed to create Gmail drafts. */
+  placeId?: string | null;
   /** Called when the operator opens WhatsApp or their mail app with the draft. */
   onSendOpened?: (channel: "whatsapp" | "email") => void;
 }) {
   const templates = useOutreachTemplates();
+  const [gmail] = useGmailStatus();
+  const [gmailDraft, setGmailDraft] = useState<
+    { state: "idle" } | { state: "busy"; email: string } | { state: "ready"; email: string; url: string; forText: string } | { state: "error"; text: string }
+  >({ state: "idle" });
   const [language, setLanguage] = useState<OutreachLanguage>(() => defaultLanguage(name));
   const [kind, setKind] = useState<DraftKind>(defaultKind);
   // null = automatic: link in follow-ups; in a first message only an offer to share examples.
@@ -166,6 +174,23 @@ export function OutreachDraft({
     setText(generated);
   }
 
+  async function createGmailDraft(email: string) {
+    if (!placeId) return;
+    setGmailDraft({ state: "busy", email });
+    try {
+      const response = await fetch("/api/gmail/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId, to: email, subject: emailSubject(templates, kind, language), body: text }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.message ?? "The Gmail draft could not be created.");
+      setGmailDraft({ state: "ready", email, url: result.url as string, forText: text });
+    } catch (error) {
+      setGmailDraft({ state: "error", text: error instanceof Error ? error.message : "The Gmail draft could not be created." });
+    }
+  }
+
   async function copy() {
     try {
       await navigator.clipboard.writeText(text);
@@ -176,7 +201,7 @@ export function OutreachDraft({
   }
 
   const emailLinks = emails
-    .map((email) => ({ email, href: mailtoHref(email, { subject: emailSubject(templates, kind, language), body: text }) }))
+    .map((email) => ({ email, href: mailtoHref(email, { subject: emailSubject(templates, kind, language), body: text, bcc: gmail.bcc }) }))
     .filter((link): link is { email: string; href: string } => link.href !== null);
 
   const whatsappLinks = phones
@@ -274,6 +299,32 @@ export function OutreachDraft({
             Email <span dir="ltr" className="max-w-40 truncate">{email}</span>
           </a>
         ))}
+        {gmail.connected &&
+          placeId &&
+          emailLinks.map(({ email }) =>
+            // After an edit, offer a new draft with the current text.
+            gmailDraft.state === "ready" && gmailDraft.email === email && gmailDraft.forText === text ? (
+              <ExternalButtonLink key={`gmail:${email}`} href={gmailDraft.url} variant="primary" onClick={() => onSendOpened?.("email")}>
+                <IconMail />
+                Open draft in Gmail
+              </ExternalButtonLink>
+            ) : (
+              <Button
+                key={`gmail:${email}`}
+                onClick={() => createGmailDraft(email)}
+                disabled={gmailDraft.state === "busy"}
+                title={`Creates a draft to ${email} in ${gmail.email}, labelled HUNTPIN`}
+              >
+                <IconMail />
+                {gmailDraft.state === "busy" && gmailDraft.email === email ? "Creating draft…" : "Gmail draft"}
+                {emailLinks.length > 1 && (
+                  <span dir="ltr" className="max-w-32 truncate">
+                    {email}
+                  </span>
+                )}
+              </Button>
+            ),
+          )}
         <Button onClick={copy}>
           <IconCopy />
           {copied === "copied" ? "Copied" : "Copy"}
@@ -284,6 +335,7 @@ export function OutreachDraft({
             Rebuild draft
           </Button>
         )}
+        {gmailDraft.state === "error" && <InlineMessage tone="danger">{gmailDraft.text}</InlineMessage>}
         {copied === "failed" && <InlineMessage tone="danger">Copy failed. Select the text and copy it manually.</InlineMessage>}
       </div>
       {(whatsappLinks.length > 0 || emailLinks.length > 0) && (
@@ -295,6 +347,8 @@ export function OutreachDraft({
               : "Email opens"}{" "}
           your own app with this message filled in; you review it and press send.
           {whatsappLinks.length > 0 && " If emojis show as “?”, use Copy and paste instead."}
+          {emailLinks.length > 0 && gmail.bcc && ` Emails BCC ${gmail.bcc}, so your Gmail filter can label them HUNTPIN.`}
+          {gmail.connected && placeId && emailLinks.length > 0 && " “Gmail draft” saves it in your Gmail drafts instead; you send it there."}
           {emailLinks.length > 0 &&
             " Many listed emails are the owner’s personal inbox: keep it short, relevant, and stop if they ask."}
         </p>

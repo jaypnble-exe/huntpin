@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mailtoHref, normalizeEmails } from "./emails";
+import { mailtoHref, normalizeEmails, plusAddress } from "./emails";
 
 describe("normalizeEmails", () => {
   it("cleans, lowercases and de-duplicates", () => {
@@ -39,5 +39,21 @@ describe("mailtoHref", () => {
   it("refuses invalid addresses (no header injection)", () => {
     expect(mailtoHref("a@b.com?bcc=x@y.com")).toBeNull();
     expect(mailtoHref("nope")).toBeNull();
+  });
+
+  it("adds a BCC to the operator's own address, keeping the + intact", () => {
+    const href = mailtoHref("info@cafe.sa", { subject: "Hi", bcc: "Me+HuntPin@gmail.com" })!;
+    expect(new URLSearchParams(href.split("?")[1]).get("bcc")).toBe("me+huntpin@gmail.com");
+    expect(mailtoHref("info@cafe.sa", { bcc: "not an email" })).toBe("mailto:info@cafe.sa");
+    expect(mailtoHref("info@cafe.sa", { bcc: "info@cafe.sa" })).toBe("mailto:info@cafe.sa");
+  });
+});
+
+describe("plusAddress", () => {
+  it("tags the local part, replacing an existing tag", () => {
+    expect(plusAddress("Me@Gmail.com", "huntpin")).toBe("me+huntpin@gmail.com");
+    expect(plusAddress("me+old@gmail.com", "huntpin")).toBe("me+huntpin@gmail.com");
+    expect(plusAddress("bad", "huntpin")).toBeNull();
+    expect(plusAddress("me@gmail.com", "a b")).toBeNull();
   });
 });

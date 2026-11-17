@@ -32,6 +32,7 @@ import {
 import { PITCH_TYPE_KEYS, PITCH_TYPES } from "@/lib/leads/pitchTypes";
 import { CATEGORY_GROUPS, type CategoryGroup } from "@/lib/places/categories";
 import { setCachedTemplates } from "../leads/useOutreachTemplates";
+import { GmailPanel } from "./GmailPanel";
 
 type LoadState = { kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string };
 
@@ -52,7 +53,7 @@ async function request(method: "GET" | "PUT" | "DELETE", body?: unknown) {
   return result as { templates: OutreachTemplates; customized: boolean };
 }
 
-export function TemplatesEditor() {
+export function TemplatesEditor({ gmailOutcome = null }: { gmailOutcome?: string | null }) {
   const [templates, setTemplates] = useState<OutreachTemplates>(DEFAULT_TEMPLATES);
   const [customized, setCustomized] = useState(false);
   const [language, setLanguage] = useState<OutreachLanguage>("en");
@@ -171,6 +172,10 @@ export function TemplatesEditor() {
         {load.kind === "loading" && <Spinner label="Loading templates…" />}
         {load.kind === "error" && <Alert tone="danger">{load.message}</Alert>}
         {message && <InlineMessage tone={message.kind === "error" ? "danger" : "success"}>{message.text}</InlineMessage>}
+      </div>
+
+      <div className="mt-4">
+        <GmailPanel outcome={gmailOutcome} />
       </div>
 
       {load.kind === "ready" && (

@@ -66,6 +66,15 @@ Google-specific sections below.
   shown as `mailto:` links that open the operator's own mail app for one
   recipient with the draft filled in. Never send email from the app, never
   bulk or merge-send, and honour `do_not_contact`. Many are personal inboxes.
+- **Gmail (optional, owner's choice 2026-11-17, `docs/GMAIL.md`):** every
+  outreach email BCCs `OUTREACH_BCC` (default: the connected Gmail address
+  +huntpin) so a Gmail filter labels it HUNTPIN. Connecting Gmail (OAuth,
+  `gmail.modify`, token AES-GCM encrypted with `GMAIL_TOKEN_KEY` in
+  `gmail_connection`, migration 011) lets the operator create one Gmail draft
+  at a time, labelled HUNTPIN, and run an operator-clicked reply check
+  (labels + From header only, max 25 conversations) that moves contacted leads
+  to `replied`. The app never sends email through Gmail, never reads message
+  bodies, and never schedules the check.
 - **Rescore** without re-importing: `npm run rescore:places -- --area <name>`.
 - **Batch website review** is allowed only as an operator-clicked action on
   saved leads: at most 20 per run, one check every 7 seconds, skipping leads

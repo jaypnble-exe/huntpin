@@ -27,7 +27,9 @@ import { WEB_PRESENCE } from "@/lib/places/webPresence";
 import type { Lead } from "@/lib/server/leadsStore";
 import { PRESENCE_STYLES } from "../placeStyles";
 import { BatchReview } from "./BatchReview";
+import { GmailReplyCheck } from "./GmailReplyCheck";
 import { LeadEditor } from "./LeadEditor";
+import { useGmailStatus } from "./useGmailStatus";
 import { leadOpportunities } from "./WebsiteCheck";
 
 /** Place score plus a bonus for website-review opportunities, capped at 100. */
@@ -62,6 +64,8 @@ export function LeadsDashboard() {
   const today = localDate(new Date());
   const [leads, setLeads] = useState<Lead[]>([]);
   const [load, setLoad] = useState<LoadState>({ kind: "loading" });
+  const [reloadKey, setReloadKey] = useState(0);
+  const [gmail] = useGmailStatus();
 
   const query = useMemo(() => {
     const q = new URLSearchParams();
@@ -87,7 +91,7 @@ export function LeadsDashboard() {
         setLoad({ kind: "error", message: error instanceof Error ? error.message : "Leads could not be loaded." });
       });
     return () => controller.abort();
-  }, [query]);
+  }, [query, reloadKey]);
 
   const sorted = useMemo(
     () => (sort === "score" ? [...leads].sort((a, b) => leadScore(b) - leadScore(a)) : leads),
@@ -120,6 +124,7 @@ export function LeadsDashboard() {
               Start outreach
             </ButtonLink>
             <BatchReview leads={sorted} onUpdated={updateLead} />
+            {gmail.connected && <GmailReplyCheck onUpdated={() => setReloadKey((k) => k + 1)} />}
             <a href={`/api/leads/export?${query}`} download className={buttonClasses({ variant: "secondary" })}>
               <IconDownload />
               Export CSV

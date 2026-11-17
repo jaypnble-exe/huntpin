@@ -15,7 +15,8 @@
     "import:foursquare": "node --env-file=.env.local --conditions=react-server --import tsx scripts/import-foursquare.ts",
     "refresh:places": "node --env-file=.env.local --conditions=react-server --import tsx scripts/refresh-places.ts",
     "rescore:places": "node --env-file=.env.local --conditions=react-server --import tsx scripts/rescore-places.ts",
-    "auth:setup": "node --conditions=react-server --import tsx scripts/auth-setup.ts"
+    "auth:setup": "node --conditions=react-server --import tsx scripts/auth-setup.ts",
+    "gmail:key": "node -e \"console.log(require('node:crypto').randomBytes(32).toString('base64'))\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

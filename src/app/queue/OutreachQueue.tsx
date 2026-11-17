@@ -441,6 +441,7 @@ function QueueCard({
           category={categoryGroupOf(place.basic_category)}
           pitchType={pitchTypeOf(place.basic_category)}
           hasWebsite={hasKnownWebsite(place.web_presence, lead?.website_url)}
+          placeId={item.placeId}
           onSendOpened={onOpened}
         />
 

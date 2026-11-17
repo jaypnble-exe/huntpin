@@ -281,6 +281,7 @@ export function LeadEditor({
               category={categoryGroupOf(place?.basic_category ?? null)}
               pitchType={pitchTypeOf(place?.basic_category ?? null)}
               hasWebsite={hasKnownWebsite(place?.web_presence, lead.website_url)}
+              placeId={lead.overture_place_id}
               name={lead.label?.trim() || place?.name || null}
               confirmedSentences={confirmedSentences}
               defaultKind={lead.first_contacted_at ? "follow_up" : "first"}
