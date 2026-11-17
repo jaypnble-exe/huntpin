@@ -4,7 +4,10 @@ import { canDraftOutreach } from "@/lib/leads/leads";
 import { normalizeEmails } from "@/lib/places/emails";
 import { createDraft, draftUrl, labelMessage } from "@/lib/server/gmail/api";
 import { gmailConfig } from "@/lib/server/gmail/config";
-import { gmailSession, GmailNotConnectedError, outreachBcc, recordThread } from "@/lib/server/gmail/store";
+import { GmailAuthError } from "@/lib/server/gmail/oauth";
+import { clearTokenCache, gmailSession, GmailNotConnectedError, outreachBcc, recordThread } from "@/lib/server/gmail/store";
+import { dailyLimit } from "@/lib/leads/queue";
+import { countContactedToday } from "@/lib/server/queueStore";
 import { getLeadForPlace } from "@/lib/server/leadsStore";
 import { isValidPlaceId } from "@/lib/server/placesStore";
 import { createRateLimiter } from "@/lib/server/rateLimit";
@@ -55,6 +58,13 @@ export async function POST(request: Request) {
     if (!normalizeEmails(place.emails).includes(recipient)) return fail("That email isn't listed for this business.", 400);
     const lead = await getLeadForPlace(supabase, placeId);
     if (lead && !canDraftOutreach(lead.lead_status)) return fail("No drafts for this lead's status.", 409);
+    // First messages share the queue's daily cap (follow-ups don't count).
+    if (!lead?.first_contacted_at) {
+      const limit = dailyLimit(process.env.DAILY_OUTREACH_LIMIT);
+      if ((await countContactedToday(supabase)) >= limit) {
+        return fail(`Today's limit of ${limit} first messages is reached. Try again tomorrow.`, 429);
+      }
+    }
 
     const session = await gmailSession(supabase, config);
     const raw = buildRawMessage({ to: recipient, bcc: outreachBcc(session.email), subject, body: text });
@@ -65,6 +75,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, url: draftUrl(session.email, draft.messageId) });
   } catch (error) {
     if (error instanceof GmailNotConnectedError) return fail("Gmail is not connected. Connect it on the Templates page.", 409);
+    if (error instanceof GmailAuthError) {
+      // Access ended in the Google account: drop the cached token; the next try refreshes it.
+      clearTokenCache();
+      return fail("Gmail refused access. Try again; if it keeps failing, reconnect Gmail on the Templates page.", 409);
+    }
     return fail("The Gmail draft could not be created. Try again, or use the Email button.", 502);
   }
 }

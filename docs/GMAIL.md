@@ -36,7 +36,12 @@ When connected:
   are ignored. It runs only when you click it, at most 25 conversations at a time.
 
 HuntPin asks Google for one permission, `gmail.modify` (create drafts, apply
-labels, read message headers). The token is stored encrypted in Supabase with
+labels, read message headers). It's needed to put the HUNTPIN label on drafts
+and conversations. Google's wording for it is broad (it could also read and
+send mail), but HuntPin's code has no send call and asks Gmail only for labels
+and the From header, never message text. A narrower option is
+`gmail.compose` + `gmail.metadata`, with the label coming from the BCC filter
+only. The token is stored encrypted in Supabase with
 `GMAIL_TOKEN_KEY`, which only the server knows. Disconnect on the Templates page
 revokes it.
 

@@ -53,6 +53,11 @@ async function updateConnection(supabase: SupabaseClient, patch: Partial<GmailCo
 export async function deleteConnection(supabase: SupabaseClient): Promise<void> {
   const { error } = await supabase.from("gmail_connection").delete().eq("id", 1);
   if (error) throw new Error("gmail_connection_write_failed");
+  clearTokenCache();
+}
+
+/** Forget the in-memory access token (after Gmail answers 401). */
+export function clearTokenCache(): void {
   tokenCache.value = undefined;
 }
 
@@ -67,7 +72,8 @@ export function outreachBcc(connectedEmail: string | null, env: Record<string, s
 }
 
 // Short-lived access token, kept in memory only.
-const tokenCache = { value: undefined as { email: string; accessToken: string; expiresAt: number } | undefined };
+// Keyed by the connection time, so reconnecting never reuses an old token.
+const tokenCache = { value: undefined as { key: string; accessToken: string; expiresAt: number } | undefined };
 
 export interface GmailSession {
   email: string;
@@ -84,8 +90,9 @@ export async function gmailSession(
   if (!connection) throw new GmailNotConnectedError("gmail_not_connected");
 
   let token: string;
+  const cacheKey = `${connection.email}|${connection.connected_at}`;
   const cached = tokenCache.value;
-  if (cached && cached.email === connection.email && cached.expiresAt - 60_000 > Date.now()) {
+  if (cached && cached.key === cacheKey && cached.expiresAt - 60_000 > Date.now()) {
     token = cached.accessToken;
   } else {
     let refreshToken: string;
@@ -97,7 +104,7 @@ export async function gmailSession(
     }
     try {
       const fresh = await refreshAccessToken({ clientId: config.clientId, clientSecret: config.clientSecret, refreshToken });
-      tokenCache.value = { email: connection.email, ...fresh };
+      tokenCache.value = { key: cacheKey, ...fresh };
       token = fresh.accessToken;
     } catch (error) {
       if (error instanceof GmailAuthError) {

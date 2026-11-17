@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { threadStatus } from "@/lib/gmail/replies";
 import { GmailNotFoundError, getThreadMeta, labelThread } from "@/lib/server/gmail/api";
 import { gmailConfig } from "@/lib/server/gmail/config";
+import { GmailAuthError } from "@/lib/server/gmail/oauth";
 import {
+  clearTokenCache,
   forgetThread,
   gmailSession,
   GmailNotConnectedError,
@@ -72,6 +74,11 @@ export async function POST() {
     return NextResponse.json({ ok: true, checked: threads.length, sent, replies });
   } catch (error) {
     if (error instanceof GmailNotConnectedError) return fail("Gmail is not connected. Connect it on the Templates page.", 409);
+    if (error instanceof GmailAuthError) {
+      // Access ended in the Google account: drop the cached token; the next try refreshes it.
+      clearTokenCache();
+      return fail("Gmail refused access. Try again; if it keeps failing, reconnect Gmail on the Templates page.", 409);
+    }
     return fail("Gmail could not be checked. Try again later.", 502);
   }
 }
