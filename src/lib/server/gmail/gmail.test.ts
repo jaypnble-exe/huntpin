@@ -58,10 +58,9 @@ describe("authorizationUrl", () => {
 });
 
 describe("outreachBcc", () => {
-  it("prefers OUTREACH_BCC, else the Gmail address with +huntpin", () => {
-    expect(outreachBcc("me@gmail.com", { OUTREACH_BCC: "Other+X@gmail.com" })).toBe("other+x@gmail.com");
-    expect(outreachBcc("me@gmail.com", {})).toBe("me+huntpin@gmail.com");
-    expect(outreachBcc(null, {})).toBeNull();
-    expect(outreachBcc(null, { OUTREACH_BCC: "not an email" })).toBeNull();
+  it("uses OUTREACH_BCC only when it is a valid address", () => {
+    expect(outreachBcc({ OUTREACH_BCC: "Other+X@gmail.com" })).toBe("other+x@gmail.com");
+    expect(outreachBcc({})).toBeNull();
+    expect(outreachBcc({ OUTREACH_BCC: "not an email" })).toBeNull();
   });
 });

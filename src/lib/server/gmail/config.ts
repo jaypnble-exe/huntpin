@@ -29,5 +29,3 @@ export function gmailConfig(env: Env = process.env): GmailConfig {
 
 /** The label HuntPin puts on its drafts and conversations. */
 export const GMAIL_LABEL = "HUNTPIN";
-/** The +tag of the BCC copy (you+huntpin@gmail.com). */
-export const BCC_TAG = "huntpin";

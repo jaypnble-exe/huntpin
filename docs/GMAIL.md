@@ -2,22 +2,15 @@
 
 Both parts are optional and free. HuntPin never sends email: you press Send yourself.
 
-## 1. HUNTPIN label with BCC (no Gmail connection)
+## 1. HUNTPIN label
 
-Every outreach email HuntPin opens gets a BCC to your own address with `+huntpin`
-(for example `you+huntpin@gmail.com`). Gmail delivers it to your normal inbox.
+Gmail doesn't run filters on email you send, and a BCC to yourself usually
+isn't delivered as a separate copy, so a BCC + filter can't label sent mail.
+Instead, connect Gmail (part 2) and press **Sync with Gmail** (Leads page or
+Templates page) after sending. HuntPin searches your Sent mail for emails to
+leads contacted in the last 60 days and puts those conversations under HUNTPIN.
 
-1. Set `OUTREACH_BCC=you+huntpin@gmail.com` in `.env.local`, and in Vercel
-   (Settings → Environment Variables). If Gmail is connected (part 2) and this is
-   empty, HuntPin uses the connected address with `+huntpin` automatically.
-2. In Gmail: Settings → See all settings → Filters and blocked addresses →
-   Create a new filter.
-   - To: `you+huntpin@gmail.com`
-   - Create filter → tick **Apply the label** → choose or create **HUNTPIN** →
-     tick **Skip the Inbox** → Create filter.
-
-The conversation, including the sent message and the replies in it, then shows
-under HUNTPIN.
+`OUTREACH_BCC` is still available if you want a BCC copy for another mail app.
 
 Tip: to make the Email buttons open Gmail instead of another mail app, open
 Gmail in Chrome, click the handler icon at the right of the address bar and
@@ -30,10 +23,12 @@ When connected:
 - Each draft gets a **Gmail draft** button. It saves the message in your Gmail
   drafts (labelled HUNTPIN) and gives you an **Open draft in Gmail** link. You
   review it and press Send in Gmail.
-- **Check Gmail for replies** (Leads page and Templates page) reads only the
-  labels and the From header of conversations HuntPin started. Leads that were
-  contacted and got a reply move to **Replied**. Automatic replies and bounces
-  are ignored. It runs only when you click it, at most 25 conversations at a time.
+- **Sync with Gmail** (Leads page and Templates page) finds emails you sent to
+  recently contacted leads (Sent mail search, ids only), labels them HUNTPIN,
+  and checks those conversations for replies, reading only labels and the From
+  header. Leads that were contacted and got a reply move to **Replied**.
+  Automatic replies and bounces are ignored. It runs only when you click it:
+  at most 30 searches and 25 conversations per click.
 
 HuntPin asks Google for one permission, `gmail.modify` (create drafts, apply
 labels, read message headers). It's needed to put the HUNTPIN label on drafts

@@ -1,8 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { normalizeEmails, plusAddress } from "@/lib/places/emails";
+import { normalizeEmails } from "@/lib/places/emails";
+import { CONTACTED_STATUSES } from "@/lib/leads/leads";
 import { ensureLabel } from "./api";
-import { BCC_TAG, GMAIL_LABEL, type GmailConfig } from "./config";
+import { GMAIL_LABEL, type GmailConfig } from "./config";
 import { decryptSecret } from "./crypto";
 import { GmailAuthError, refreshAccessToken, revokeToken } from "./oauth";
 
@@ -62,13 +63,13 @@ export function clearTokenCache(): void {
 }
 
 /**
- * Where the BCC copy of each outreach email goes: OUTREACH_BCC if set, else
- * the connected Gmail address with +huntpin. Null when neither is known.
+ * Optional BCC on outreach emails (OUTREACH_BCC), e.g. for a mail app that
+ * isn't Gmail. Gmail doesn't run filters on mail you BCC to yourself, so the
+ * HUNTPIN label comes from "Sync with Gmail" instead.
  */
-export function outreachBcc(connectedEmail: string | null, env: Record<string, string | undefined> = process.env): string | null {
+export function outreachBcc(env: Record<string, string | undefined> = process.env): string | null {
   const [configured] = normalizeEmails(env.OUTREACH_BCC ? [env.OUTREACH_BCC] : []);
-  if (configured) return configured;
-  return connectedEmail ? plusAddress(connectedEmail, BCC_TAG) : null;
+  return configured ?? null;
 }
 
 // Short-lived access token, kept in memory only.
@@ -144,6 +145,40 @@ export async function recordThread(
     .from("gmail_threads")
     .upsert({ thread_id: t.threadId, place_id: t.placeId, draft_message_id: t.messageId }, { onConflict: "thread_id" });
   if (error) throw new Error("gmail_thread_write_failed");
+}
+
+/** Remembers a conversation found in Sent mail; keeps an existing record as is. */
+export async function recordFoundThread(supabase: SupabaseClient, threadId: string, placeId: string): Promise<void> {
+  const { error } = await supabase
+    .from("gmail_threads")
+    .upsert({ thread_id: threadId, place_id: placeId }, { onConflict: "thread_id", ignoreDuplicates: true });
+  if (error) throw new Error("gmail_thread_write_failed");
+}
+
+/** Listed emails of leads contacted in the last 60 days, most recent first. */
+export async function recentlyContactedEmails(
+  supabase: SupabaseClient,
+  limit: number,
+  now = new Date(),
+): Promise<{ placeId: string; email: string }[]> {
+  const since = new Date(now.getTime() - 60 * 86_400_000).toISOString();
+  const { data, error } = await supabase
+    .from("leads")
+    .select("overture_place_id,place:places(emails)")
+    .in("lead_status", [...CONTACTED_STATUSES])
+    .gte("last_contacted_at", since)
+    .not("overture_place_id", "is", null)
+    .order("last_contacted_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error("leads_read_failed");
+  const out: { placeId: string; email: string }[] = [];
+  for (const row of (data ?? []) as unknown as { overture_place_id: string; place: { emails: string[] | null } | null }[]) {
+    for (const email of normalizeEmails(row.place?.emails ?? [])) {
+      out.push({ placeId: row.overture_place_id, email });
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
 }
 
 export interface TrackedThread {

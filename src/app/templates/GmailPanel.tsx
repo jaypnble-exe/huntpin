@@ -6,7 +6,7 @@ import { GmailReplyCheck } from "../leads/GmailReplyCheck";
 import { useGmailStatus } from "../leads/useGmailStatus";
 
 const OUTCOMES: Record<string, { tone: "success" | "danger"; text: string }> = {
-  connected: { tone: "success", text: "Gmail connected. Drafts now get a “Gmail draft” button." },
+  connected: { tone: "success", text: "Gmail connected. Press Sync with Gmail after sending to file emails under HUNTPIN." },
   denied: { tone: "danger", text: "Gmail wasn't connected: access was declined on Google's screen." },
   scope_missing: { tone: "danger", text: "Gmail wasn't connected: tick the Gmail permission on Google's screen and try again." },
   expired: { tone: "danger", text: "The connect link expired. Press Connect Gmail again." },
@@ -43,7 +43,7 @@ export function GmailPanel({ outcome }: { outcome: string | null }) {
     <Card className="p-5">
       <Section
         title="Gmail"
-        description="Optional. HuntPin puts drafts in your Gmail labelled HUNTPIN and checks them for replies. It never sends: you press Send in Gmail."
+        description="Optional. HuntPin files your outreach emails under a HUNTPIN label in Gmail and checks them for replies. It never sends: you press Send yourself."
       >
         <div className="space-y-3 text-sm">
           {notice && <InlineMessage tone={notice.tone}>{notice.text}</InlineMessage>}
@@ -53,7 +53,7 @@ export function GmailPanel({ outcome }: { outcome: string | null }) {
             <>
               <p>
                 Connected as <strong dir="ltr">{gmail.email}</strong>
-                {gmail.lastReplyCheckAt && <span className="text-muted"> · replies last checked {formatWhen(gmail.lastReplyCheckAt)}</span>}
+                {gmail.lastReplyCheckAt && <span className="text-muted"> · last synced {formatWhen(gmail.lastReplyCheckAt)}</span>}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <GmailReplyCheck onUpdated={refresh} />
@@ -72,22 +72,15 @@ export function GmailPanel({ outcome }: { outcome: string | null }) {
           )}
           {error && <InlineMessage tone="danger">{error}</InlineMessage>}
 
-          {gmail.bcc ? (
-            <div className="rounded-lg bg-surface-muted px-3 py-2">
-              <p>
-                Every outreach email gets a BCC to <strong dir="ltr">{gmail.bcc}</strong>. To file them under HUNTPIN, create one
-                Gmail filter (Settings → Filters → Create a new filter):
-              </p>
-              <ol className="mt-1 list-decimal space-y-0.5 pl-5">
-                <li>
-                  To: <span dir="ltr">{gmail.bcc}</span>
-                </li>
-                <li>Apply the label: HUNTPIN (and tick “Skip the Inbox”)</li>
-              </ol>
-            </div>
-          ) : (
+          {gmail.connected && (
             <p className="text-muted">
-              Set OUTREACH_BCC (e.g. you+huntpin@gmail.com) or connect Gmail to BCC yourself on every outreach email.
+              Emails you send from HuntPin go under HUNTPIN when you press Sync with Gmail (here or on the Leads page). It
+              looks for emails you sent to leads contacted in the last 60 days.
+            </p>
+          )}
+          {gmail.bcc && (
+            <p className="text-muted">
+              Outreach emails also BCC <span dir="ltr">{gmail.bcc}</span> (OUTREACH_BCC).
             </p>
           )}
         </div>

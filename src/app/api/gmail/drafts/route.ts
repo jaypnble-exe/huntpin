@@ -67,13 +67,15 @@ export async function POST(request: Request) {
     }
 
     const session = await gmailSession(supabase, config);
-    const raw = buildRawMessage({ to: recipient, bcc: outreachBcc(session.email), subject, body: text });
+    const raw = buildRawMessage({ to: recipient, bcc: outreachBcc(), subject, body: text });
     const draft = await createDraft(session.token, raw);
     // Best effort: the BCC filter and the reply check label the conversation too.
     await labelMessage(session.token, draft.messageId, session.labelId).catch(() => undefined);
     await recordThread(supabase, { threadId: draft.threadId, placeId, messageId: draft.messageId });
     return NextResponse.json({ ok: true, url: draftUrl(session.email, draft.messageId) });
   } catch (error) {
+    // Error codes only (e.g. gmail_403); never tokens or message content.
+    console.error("gmail_draft_failed", error instanceof Error ? error.message : "unknown");
     if (error instanceof GmailNotConnectedError) return fail("Gmail is not connected. Connect it on the Templates page.", 409);
     if (error instanceof GmailAuthError) {
       // Access ended in the Google account: drop the cached token; the next try refreshes it.

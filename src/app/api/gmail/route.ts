@@ -15,7 +15,7 @@ export async function GET() {
     configured: config.kind === "on",
     problem: config.kind === "misconfigured" ? config.reason : null,
   };
-  if (config.kind !== "on") return NextResponse.json({ ...base, connected: false, email: null, bcc: outreachBcc(null) });
+  if (config.kind !== "on") return NextResponse.json({ ...base, connected: false, email: null, bcc: outreachBcc() });
   try {
     const connection = await getConnection(getSupabaseAdmin());
     return NextResponse.json({
@@ -23,10 +23,10 @@ export async function GET() {
       connected: connection !== null,
       email: connection?.email ?? null,
       lastReplyCheckAt: connection?.last_reply_check_at ?? null,
-      bcc: outreachBcc(connection?.email ?? null),
+      bcc: outreachBcc(),
     });
   } catch {
-    return NextResponse.json({ ...base, connected: false, email: null, bcc: outreachBcc(null), problem: UNAVAILABLE });
+    return NextResponse.json({ ...base, connected: false, email: null, bcc: outreachBcc(), problem: UNAVAILABLE });
   }
 }
 

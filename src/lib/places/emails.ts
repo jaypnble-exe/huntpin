@@ -39,14 +39,3 @@ export function mailtoHref(
   return `mailto:${address}${query ? `?${query}` : ""}`;
 }
 
-/**
- * The operator's address with a "+tag" (you@gmail.com -> you+huntpin@gmail.com).
- * Gmail delivers it to the same inbox, and a filter on it can apply a label.
- */
-export function plusAddress(email: string, tag: string): string | null {
-  const [address] = normalizeEmails([email]);
-  if (!address || !/^[a-z0-9]+$/.test(tag)) return null;
-  const at = address.lastIndexOf("@");
-  const local = address.slice(0, at).split("+")[0];
-  return `${local}+${tag}${address.slice(at)}`;
-}

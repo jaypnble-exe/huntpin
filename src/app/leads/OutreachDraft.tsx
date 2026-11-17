@@ -347,7 +347,8 @@ export function OutreachDraft({
               : "Email opens"}{" "}
           your own app with this message filled in; you review it and press send.
           {whatsappLinks.length > 0 && " If emojis show as “?”, use Copy and paste instead."}
-          {emailLinks.length > 0 && gmail.bcc && ` Emails BCC ${gmail.bcc}, so your Gmail filter can label them HUNTPIN.`}
+          {emailLinks.length > 0 && gmail.bcc && ` Emails BCC ${gmail.bcc}.`}
+          {gmail.connected && emailLinks.length > 0 && " Sync with Gmail on the Leads page files sent emails under HUNTPIN."}
           {gmail.connected && placeId && emailLinks.length > 0 && " “Gmail draft” saves it in your Gmail drafts instead; you send it there."}
           {emailLinks.length > 0 &&
             " Many listed emails are the owner’s personal inbox: keep it short, relevant, and stop if they ask."}

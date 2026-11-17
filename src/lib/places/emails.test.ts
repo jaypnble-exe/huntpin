@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mailtoHref, normalizeEmails, plusAddress } from "./emails";
+import { mailtoHref, normalizeEmails } from "./emails";
 
 describe("normalizeEmails", () => {
   it("cleans, lowercases and de-duplicates", () => {
@@ -49,11 +49,3 @@ describe("mailtoHref", () => {
   });
 });
 
-describe("plusAddress", () => {
-  it("tags the local part, replacing an existing tag", () => {
-    expect(plusAddress("Me@Gmail.com", "huntpin")).toBe("me+huntpin@gmail.com");
-    expect(plusAddress("me+old@gmail.com", "huntpin")).toBe("me+huntpin@gmail.com");
-    expect(plusAddress("bad", "huntpin")).toBeNull();
-    expect(plusAddress("me@gmail.com", "a b")).toBeNull();
-  });
-});

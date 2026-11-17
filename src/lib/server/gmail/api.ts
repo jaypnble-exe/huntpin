@@ -18,7 +18,9 @@ async function call<T>(token: string, path: string, init: RequestInit = {}): Pro
   if (response.status === 401) throw new GmailAuthError("gmail_401");
   if (response.status === 404) throw new GmailNotFoundError("gmail_not_found");
   if (!response.ok) throw new Error(`gmail_${response.status}`);
-  return (await response.json()) as T;
+  // Some calls answer with an empty body.
+  const text = await response.text();
+  return (text ? JSON.parse(text) : {}) as T;
 }
 
 export async function getProfileEmail(token: string): Promise<string> {
@@ -69,6 +71,20 @@ export async function getThreadMeta(token: string, threadId: string): Promise<Th
   params.append("metadataHeaders", "Auto-Submitted");
   const thread = await call<{ messages?: ThreadMessageMeta[] }>(token, `/threads/${encodeURIComponent(threadId)}?${params}`);
   return thread.messages ?? [];
+}
+
+/**
+ * Conversations where the operator emailed this address in the last 60 days
+ * (from Sent mail). Returns thread ids only.
+ */
+export async function sentThreadIds(token: string, email: string): Promise<string[]> {
+  const params = new URLSearchParams({
+    q: `in:sent to:${email} newer_than:60d`,
+    maxResults: "10",
+    fields: "messages(threadId)",
+  });
+  const result = await call<{ messages?: { threadId: string }[] }>(token, `/messages?${params}`);
+  return [...new Set((result.messages ?? []).map((m) => m.threadId))];
 }
 
 /** Opens one draft in Gmail on the web, signed in as the connected account. */

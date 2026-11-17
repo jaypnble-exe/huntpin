@@ -10,16 +10,17 @@ interface Result {
 }
 
 function summary(result: Result): string {
-  if (result.checked === 0) return "No Gmail conversations to check yet.";
+  if (result.checked === 0) return "No emails to recently contacted leads found in your Sent mail.";
+  const labelled = `${result.sent} sent ${result.sent === 1 ? "conversation" : "conversations"} under HUNTPIN`;
   const updated = result.replies.filter((r) => r.updated);
   const names = updated.map((r) => r.name).filter(Boolean).slice(0, 3).join(", ");
-  if (result.replies.length === 0) return `Checked ${result.checked} conversations: no new replies.`;
-  return `${result.replies.length} new ${result.replies.length === 1 ? "reply" : "replies"}${
+  if (result.replies.length === 0) return `${labelled}; no new replies.`;
+  return `${labelled}; ${result.replies.length} new ${result.replies.length === 1 ? "reply" : "replies"}${
     updated.length > 0 ? `; marked Replied: ${names}${updated.length > 3 ? "…" : ""}` : ""
   }.`;
 }
 
-/** Operator-clicked check of HuntPin's Gmail conversations for replies. */
+/** Operator-clicked: labels sent outreach HUNTPIN in Gmail and checks for replies. */
 export function GmailReplyCheck({ onUpdated }: { onUpdated?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
@@ -43,9 +44,9 @@ export function GmailReplyCheck({ onUpdated }: { onUpdated?: () => void }) {
 
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
-      <Button onClick={run} disabled={busy}>
+      <Button onClick={run} disabled={busy} title="Puts emails you sent to leads under the HUNTPIN label and checks them for replies">
         <IconMail />
-        {busy ? "Checking Gmail…" : "Check Gmail for replies"}
+        {busy ? "Syncing with Gmail…" : "Sync with Gmail"}
       </Button>
       {message && <InlineMessage tone={message.tone}>{message.text}</InlineMessage>}
     </span>
