@@ -33,7 +33,6 @@ import {
   type QueueQuery,
 } from "@/lib/leads/queue";
 import { CATEGORY_GROUPS, categoryGroupOf, humanizeCategory, isCategoryGroup } from "@/lib/places/categories";
-import { mailtoHref } from "@/lib/places/emails";
 import { googleMapsSearchUrl, telHref } from "@/lib/places/links";
 import type { Lead } from "@/lib/server/leadsStore";
 import type { Queue, QueueItem } from "@/lib/server/queueStore";
@@ -403,15 +402,13 @@ function QueueCard({
               </a>
             ) : null;
           })}
-          {place.emails.map((email) => {
-            const href = mailtoHref(email);
-            return href ? (
-              <a key={email} href={href} dir="ltr" title={email} className="inline-flex h-8 max-w-56 items-center gap-1.5 rounded-md border border-border-strong px-2.5 text-xs font-medium hover:bg-surface-muted">
-                <IconMail />
-                <span className="truncate">{email}</span>
-              </a>
-            ) : null;
-          })}
+          {/* Plain text: the draft's Email button opens it with the subject and message filled in. */}
+          {place.emails.map((email) => (
+            <span key={email} dir="ltr" title={email} className="inline-flex h-8 max-w-56 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs text-muted select-all">
+              <IconMail />
+              <span className="truncate">{email}</span>
+            </span>
+          ))}
         </div>
         <SocialLinks urls={[...place.websites, ...place.socials]} />
         <div className="flex flex-wrap gap-2">
