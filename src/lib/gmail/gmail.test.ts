@@ -42,9 +42,19 @@ describe("threadStatus", () => {
   });
 
   it("counts a reply only after the operator sent the message", () => {
-    expect(threadStatus([msg(["DRAFT"], own)], own)).toEqual({ sent: false, replied: false });
-    expect(threadStatus([msg(["SENT"], own)], own)).toEqual({ sent: true, replied: false });
-    expect(threadStatus([msg(["SENT"], own), msg(["INBOX"], "Cafe <info@cafe.sa>")], own)).toEqual({ sent: true, replied: true });
+    expect(threadStatus([msg(["DRAFT"], own)], own)).toEqual({ sent: false, replied: false, lastReplyAt: null });
+    expect(threadStatus([msg(["SENT"], own)], own)).toEqual({ sent: true, replied: false, lastReplyAt: null });
+    expect(threadStatus([msg(["SENT"], own), msg(["INBOX"], "Cafe <info@cafe.sa>")], own)).toEqual({
+      sent: true,
+      replied: true,
+      lastReplyAt: null,
+    });
+    expect(threadStatus([msg(["INBOX"], "info@cafe.sa")], own).replied).toBe(false);
+  });
+
+  it("dates the latest reply", () => {
+    const reply = (at: string) => ({ ...msg(["INBOX"], "info@cafe.sa"), internalDate: at });
+    expect(threadStatus([msg(["SENT"], own), reply("1700000000000"), reply("1700000500000")], own).lastReplyAt).toBe(1700000500000);
   });
 
   it("ignores the BCC copy, bounces and automatic replies", () => {

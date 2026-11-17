@@ -27,7 +27,8 @@ When connected:
   recently contacted leads (Sent mail search, ids only), labels them HUNTPIN,
   and checks those conversations for replies, reading only labels and the From
   header. Leads that were contacted and got a reply move to **Replied**.
-  Automatic replies and bounces are ignored. It runs only when you click it:
+  Automatic replies and bounces are ignored. The **Replies** page lists every
+  business that replied, newest first, with Open in Gmail and Open lead. It runs only when you click it:
   at most 30 searches and 25 conversations per click.
 
 HuntPin asks Google for one permission, `gmail.modify` (create drafts, apply

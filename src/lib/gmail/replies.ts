@@ -3,6 +3,8 @@
 
 export interface ThreadMessageMeta {
   labelIds?: string[];
+  /** When Gmail received the message, ms since 1970, as a string. */
+  internalDate?: string;
   payload?: { headers?: { name: string; value: string }[] };
 }
 
@@ -11,6 +13,8 @@ export interface ThreadStatus {
   sent: boolean;
   /** Someone else wrote back (not an automatic reply or a bounce). */
   replied: boolean;
+  /** When the latest reply arrived (ms), if known. */
+  lastReplyAt: number | null;
 }
 
 function header(message: ThreadMessageMeta, name: string): string | null {
@@ -34,6 +38,7 @@ export function threadStatus(messages: ThreadMessageMeta[], ownEmail: string): T
   const own = fromAddress(ownEmail);
   let sent = false;
   let replied = false;
+  let lastReplyAt: number | null = null;
   for (const message of messages) {
     const labels = message.labelIds ?? [];
     if (labels.includes("DRAFT")) continue;
@@ -46,7 +51,9 @@ export function threadStatus(messages: ThreadMessageMeta[], ownEmail: string): T
     const autoSubmitted = header(message, "Auto-Submitted");
     if (autoSubmitted && autoSubmitted.trim().toLowerCase() !== "no") continue;
     replied = true;
+    const at = Number(message.internalDate);
+    if (Number.isFinite(at) && at > 0 && (lastReplyAt === null || at > lastReplyAt)) lastReplyAt = at;
   }
   // A reply only counts once the operator actually sent the first message.
-  return { sent, replied: sent && replied };
+  return sent && replied ? { sent, replied: true, lastReplyAt } : { sent, replied: false, lastReplyAt: null };
 }

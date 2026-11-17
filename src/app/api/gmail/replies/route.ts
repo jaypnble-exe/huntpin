@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { threadStatus } from "@/lib/gmail/replies";
-import { GmailNotFoundError, getThreadMeta, labelThread, sentThreadIds } from "@/lib/server/gmail/api";
+import { GmailNotFoundError, getThreadMeta, labelThread, sentThreadIds, threadUrl } from "@/lib/server/gmail/api";
 import { gmailConfig } from "@/lib/server/gmail/config";
 import { GmailAuthError } from "@/lib/server/gmail/oauth";
 import {
   clearTokenCache,
   forgetThread,
+  getConnection,
   gmailSession,
   GmailNotConnectedError,
+  listReplies,
   markReplyCheck,
   markThread,
   recentlyContactedEmails,
@@ -32,6 +34,25 @@ const limiter = createRateLimiter({ limit: 6, windowMs: 10 * 60_000 });
 
 function fail(message: string, status: number) {
   return NextResponse.json({ ok: false, message }, { status });
+}
+
+// GET /api/gmail/replies   businesses that replied, newest first, with a link
+//   to each conversation in Gmail. Only names, dates and ids; no email text.
+export async function GET() {
+  if (gmailConfig().kind !== "on") return fail("Gmail is not set up on this server.", 503);
+  try {
+    const supabase = getSupabaseAdmin();
+    const connection = await getConnection(supabase);
+    if (!connection) return fail("Gmail is not connected. Connect it on the Templates page.", 409);
+    const replies = await listReplies(supabase);
+    return NextResponse.json({
+      lastSyncAt: connection.last_reply_check_at,
+      replies: replies.map((r) => ({ ...r, url: threadUrl(connection.email, r.threadId) })),
+    });
+  } catch (error) {
+    console.error("gmail_replies_list_failed", error instanceof Error ? error.message : "unknown");
+    return fail("Replies are unavailable. Try again later.", 503);
+  }
 }
 
 // POST /api/gmail/replies   "Sync with Gmail":

@@ -34,7 +34,7 @@ export function GmailReplyCheck({ onUpdated }: { onUpdated?: () => void }) {
       if (!response.ok) throw new Error(body?.message ?? "Gmail could not be checked.");
       const result = body as Result;
       setMessage({ tone: "success", text: summary(result) });
-      if (result.replies.some((r) => r.updated)) onUpdated?.();
+      if (result.replies.length > 0) onUpdated?.();
     } catch (error) {
       setMessage({ tone: "danger", text: error instanceof Error ? error.message : "Gmail could not be checked." });
     } finally {

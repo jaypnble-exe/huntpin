@@ -203,12 +203,12 @@ export async function threadsToCheck(supabase: SupabaseClient, limit: number, no
 export async function markThread(
   supabase: SupabaseClient,
   threadId: string,
-  patch: { sent?: boolean; replied?: boolean },
+  patch: { sent?: boolean; replied?: boolean; lastReplyAt?: number | null },
   now = new Date(),
 ): Promise<void> {
   const update: Record<string, unknown> = { last_checked_at: now.toISOString() };
   if (patch.sent) update.sent_seen_at = now.toISOString();
-  if (patch.replied) update.replied_at = now.toISOString();
+  if (patch.replied) update.replied_at = new Date(patch.lastReplyAt ?? now.getTime()).toISOString();
   const { error } = await supabase.from("gmail_threads").update(update).eq("thread_id", threadId);
   if (error) throw new Error("gmail_thread_write_failed");
 }
@@ -216,6 +216,48 @@ export async function markThread(
 export async function forgetThread(supabase: SupabaseClient, threadId: string): Promise<void> {
   const { error } = await supabase.from("gmail_threads").delete().eq("thread_id", threadId);
   if (error) throw new Error("gmail_thread_write_failed");
+}
+
+export interface ReplyRow {
+  threadId: string;
+  repliedAt: string;
+  placeId: string;
+  name: string | null;
+  lead: { id: string; label: string | null; status: string } | null;
+}
+
+/** Conversations where the business replied, newest reply first. */
+export async function listReplies(supabase: SupabaseClient, limit = 200): Promise<ReplyRow[]> {
+  const { data: threads, error } = await supabase
+    .from("gmail_threads")
+    .select("thread_id,place_id,replied_at")
+    .not("replied_at", "is", null)
+    .order("replied_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error("gmail_threads_read_failed");
+  const rows = (threads ?? []) as { thread_id: string; place_id: string; replied_at: string }[];
+  const placeIds = [...new Set(rows.map((t) => t.place_id))];
+  if (placeIds.length === 0) return [];
+
+  const [places, leads] = await Promise.all([
+    supabase.from("places").select("id,name").in("id", placeIds),
+    supabase.from("leads").select("id,label,lead_status,overture_place_id").in("overture_place_id", placeIds),
+  ]);
+  if (places.error || leads.error) throw new Error("replies_read_failed");
+  const names = new Map((places.data ?? []).map((p) => [p.id as string, (p.name as string | null) ?? null]));
+  const leadsByPlace = new Map(
+    (leads.data ?? []).map((l) => [
+      l.overture_place_id as string,
+      { id: l.id as string, label: (l.label as string | null) ?? null, status: l.lead_status as string },
+    ]),
+  );
+  return rows.map((t) => ({
+    threadId: t.thread_id,
+    repliedAt: t.replied_at,
+    placeId: t.place_id,
+    name: names.get(t.place_id) ?? null,
+    lead: leadsByPlace.get(t.place_id) ?? null,
+  }));
 }
 
 export async function markReplyCheck(supabase: SupabaseClient, now = new Date()): Promise<void> {

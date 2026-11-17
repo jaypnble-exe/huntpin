@@ -66,7 +66,7 @@ export async function labelThread(token: string, threadId: string, labelId: stri
 /** A conversation's labels and its From / Auto-Submitted headers only. */
 export async function getThreadMeta(token: string, threadId: string): Promise<ThreadMessageMeta[]> {
   // "fields" leaves out the snippet (part of the body), which Gmail sends by default.
-  const params = new URLSearchParams({ format: "metadata", fields: "messages(labelIds,payload/headers)" });
+  const params = new URLSearchParams({ format: "metadata", fields: "messages(labelIds,internalDate,payload/headers)" });
   params.append("metadataHeaders", "From");
   params.append("metadataHeaders", "Auto-Submitted");
   const thread = await call<{ messages?: ThreadMessageMeta[] }>(token, `/threads/${encodeURIComponent(threadId)}?${params}`);
@@ -85,6 +85,11 @@ export async function sentThreadIds(token: string, email: string): Promise<strin
   });
   const result = await call<{ messages?: { threadId: string }[] }>(token, `/messages?${params}`);
   return [...new Set((result.messages ?? []).map((m) => m.threadId))];
+}
+
+/** Opens one conversation in Gmail on the web, signed in as the connected account. */
+export function threadUrl(email: string, threadId: string): string {
+  return `https://mail.google.com/mail/?authuser=${encodeURIComponent(email)}#all/${encodeURIComponent(threadId)}`;
 }
 
 /** Opens one draft in Gmail on the web, signed in as the connected account. */
