@@ -91,7 +91,7 @@ export const DEFAULT_TEMPLATES: OutreachTemplates = {
       hotels: "For hotels and stays, I build websites with direct booking, so guests can reserve with you without booking-site commissions. I can also add an AI assistant that answers guest questions and takes booking requests around the clock.",
       education: "For schools and training centres, I build websites with online registration, course pages and portals for parents or students. I can also add an AI assistant that answers registration questions from parents and students.",
     },
-    subjects: { first: "Website & app development: a quick introduction", followUp: "Following up on my earlier message" },
+    subjects: { first: "Website & App Development Proposal", followUp: "Following up on my earlier message" },
   },
   ar: {
     first: {
@@ -148,7 +148,7 @@ export const DEFAULT_TEMPLATES: OutreachTemplates = {
       hotels: "للفنادق وأماكن الإقامة، أبني مواقع مع الحجز المباشر، ليحجز الضيوف معكم دون عمولات مواقع الحجز. ويمكنني أيضاً إضافة مساعد ذكي يجيب عن أسئلة الضيوف ويستقبل طلبات الحجز على مدار الساعة.",
       education: "للمدارس ومراكز التدريب، أبني مواقع مع التسجيل أونلاين، وصفحات للدورات، وبوابات لأولياء الأمور والطلاب. ويمكنني أيضاً إضافة مساعد ذكي يجيب عن أسئلة التسجيل من أولياء الأمور والطلاب.",
     },
-    subjects: { first: "تطوير المواقع والتطبيقات: تعريف سريع", followUp: "متابعة لرسالتي السابقة" },
+    subjects: { first: "عرض تطوير المواقع والتطبيقات", followUp: "متابعة لرسالتي السابقة" },
   },
 };
 
